@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="pl" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug AI Detector – AI QA Bug Detector &amp; Reporter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐞%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- CDN CDN / Standalone dependencies -->
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+<script>
+tailwind.config = {
+  theme: { extend: {
+    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+    colors: { brand: { 500: '#6366f1', 600: '#4f46e5', accent: '#00f2fe', purple: '#9d4edd', dark: '#0b0f19' } }
+  } }
+};
+</script>
+<style type="text/tailwindcss">
+  @layer components {
+    .card   { @apply bg-gray-900/70 border border-gray-800 rounded-2xl p-5; }
+    .field  { @apply bg-gray-950 border border-gray-800 text-xs text-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-brand-500; }
+    .th     { @apply p-3.5 font-mono uppercase; }
+    .td     { @apply p-3.5; }
+    .btn    { @apply px-4 py-2 rounded-xl text-xs font-semibold text-white flex items-center gap-2 transition-colors; }
+    .modal  { @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm; }
+  }
+  body { background: #070a12; color: #f3f4f6; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+</style>
+</head>
+
+<body class="h-screen flex overflow-hidden antialiased font-sans">
+
+<!-- SIDEBAR -->
+<aside class="w-16 lg:w-64 shrink-0 bg-brand-dark border-r border-gray-800 flex flex-col justify-between z-20">
+  <div>
+    <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-gray-800/80 gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-500 to-brand-accent flex items-center justify-center text-black text-lg shrink-0">
+        <i class="fa-solid fa-bug-slash" aria-hidden="true"></i>
+      </div>
+      <div class="hidden lg:block">
+        <span class="font-bold text-lg bg-gradient-to-r from-white to-brand-accent bg-clip-text text-transparent">Bug AI Detector</span>
+      </div>
+    </div>
+    <nav id="nav" class="p-3 lg:p-4 space-y-1" aria-label="Główna nawigacja"></nav>
+  </div>
+
+  <div class="p-3 lg:p-4 border-t border-gray-800 space-y-3">
+    <button data-action="open-new-test" class="btn w-full justify-center py-3 bg-gradient-to-r from-brand-600 to-brand-purple hover:opacity-90">
+      <i class="fa-solid fa-play text-xs" aria-hidden="true"></i><span class="hidden lg:inline">Nowy Test AI</span>
+    </button>
+    <dl id="system-status" class="hidden lg:block bg-gray-900/80 rounded-xl p-3 border border-gray-800 text-xs space-y-1.5"></dl>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+  <header class="h-16 shrink-0 border-b border-gray-800/80 px-4 lg:px-6 flex items-center justify-between gap-4 bg-brand-dark/50 backdrop-blur-md">
+    <div class="relative w-full max-w-sm">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" aria-hidden="true"></i>
+      <input id="search" type="search" aria-label="Szukaj zgłoszeń" placeholder="Szukaj błędów, modułów…" class="field w-full pl-9 py-1.5 text-sm">
+    </div>
+    <div class="flex items-center gap-4 shrink-0">
+      <span class="hidden md:flex items-center gap-2 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-xl text-xs text-gray-300">
+        <span class="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
+        Środowisko: <strong class="text-white">Unreal Engine 5.3 (Staging)</strong>
+      </span>
+      <div id="lang-switch" role="group" aria-label="Język / Language" class="flex rounded-xl border border-gray-800 overflow-hidden text-xs font-semibold">
+        <button data-action="set-lang" data-lang="pl" aria-pressed="false" class="px-2.5 py-1.5 text-gray-400 hover:text-white aria-pressed:bg-brand-500 aria-pressed:text-white">PL</button>
+        <button data-action="set-lang" data-lang="en" aria-pressed="false" class="px-2.5 py-1.5 text-gray-400 hover:text-white aria-pressed:bg-brand-500 aria-pressed:text-white">EN</button>
+      </div>
+      <button data-action="demo" aria-label="Powiadomienia" class="relative p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800/50">
+        <i class="fa-regular fa-bell text-lg" aria-hidden="true"></i>
+        <span class="absolute top-1 right-1 w-2 h-2 bg-brand-accent rounded-full"></span>
+      </button>
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-full border border-brand-500/50 bg-gray-800 flex items-center justify-center text-xs font-bold" aria-hidden="true">JK</span>
+        <div class="hidden sm:block text-xs"><div class="font-bold text-gray-200">Jan Kowalski</div><div class="text-gray-500">QA Specialist</div></div>
+      </div>
+    </div>
+  </header>
+
+  <div id="view-container" class="flex-1 overflow-y-auto p-4 lg:p-6">
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" data-view class="space-y-6">
+      <div id="kpis" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card lg:col-span-2">
+          <h2 class="font-bold text-gray-100 flex items-center gap-2"><i class="fa-solid fa-chart-line text-brand-accent" aria-hidden="true"></i>Trend wykrywania błędów vs build</h2>
+          <p class="text-xs text-gray-400 mb-4">Ostatnie 5 buildów; ostatni punkt liczony z bieżącej listy zgłoszeń</p>
+          <div class="h-64"><canvas id="trendChart" aria-label="Trend błędów"></canvas></div>
+        </div>
+        <div class="card">
+          <h2 class="font-bold text-gray-100 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-brand-purple" aria-hidden="true"></i>Kategorie niezgodności</h2>
+          <p class="text-xs text-gray-400">Klasyfikacja automatyczna przez LLM</p>
+          <div class="h-48 my-3"><canvas id="categoryChart" aria-label="Podział na kategorie"></canvas></div>
+          <ul id="category-legend" class="grid grid-cols-2 gap-2 text-xs border-t border-gray-800 pt-3"></ul>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card space-y-4">
+          <div class="flex justify-between items-center">
+            <h2 class="font-bold text-gray-100 flex items-center gap-2"><i class="fa-solid fa-video text-rose-500" aria-hidden="true"></i>Podgląd na żywo</h2>
+            <span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-md font-mono">Agent #04</span>
+          </div>
+          <div class="relative aspect-video rounded-xl overflow-hidden border border-gray-800 bg-gradient-to-br from-gray-900 via-indigo-950 to-black">
+            <div class="absolute top-1/3 left-1/4 w-32 h-24 border-2 border-rose-500 bg-rose-500/20 rounded p-1">
+              <span class="bg-rose-600 text-[9px] font-bold px-1 rounded">Mesh Clipping (98%)</span>
+            </div>
+            <div class="absolute bottom-3 inset-x-3 flex justify-between text-xs font-mono">
+              <span class="bg-black/60 px-2 py-1 rounded-lg text-gray-300">FPS: 58 | VRAM: 4.2 GB</span>
+              <span class="bg-black/60 px-2 py-1 rounded-lg text-brand-accent">Exploration_NavMesh_Test</span>
+            </div>
+          </div>
+          <div id="live-feed" class="bg-gray-950 p-3 rounded-xl border border-gray-800 text-xs font-mono space-y-1"></div>
+        </div>
+        <div class="card lg:col-span-2">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="font-bold text-gray-100 flex items-center gap-2"><i class="fa-solid fa-list-check text-brand-500" aria-hidden="true"></i>Ostatnio wykryte niezgodności</h2>
+            <button data-action="switch-tab" data-target="bugs" class="text-xs text-brand-accent hover:underline">Zobacz wszystkie <i class="fa-solid fa-chevron-right text-[10px]" aria-hidden="true"></i></button>
+          </div>
+          <ul id="recent-bugs" class="space-y-2.5"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEST RUNS -->
+    <section id="view-testruns" data-view class="hidden space-y-6">
+      <div class="flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <h2 class="text-xl font-bold">Aktywne i zaplanowane Test Runs</h2>
+          <p class="text-sm text-gray-400">Zarządzaj flotą autonomicznych agentów AI</p>
+        </div>
+        <button data-action="open-new-test" class="btn bg-brand-500 hover:bg-brand-600"><i class="fa-solid fa-plus" aria-hidden="true"></i>Uruchom nową sesję</button>
+      </div>
+      <div id="agents" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      <div class="card p-0 overflow-hidden">
+        <h3 class="p-4 border-b border-gray-800 font-bold text-sm">Historia sesji testowych</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-950 text-gray-400 border-b border-gray-800"><tr>
+              <th class="th">ID</th><th class="th">Cel</th><th class="th">Agent</th><th class="th">Czas</th><th class="th">Błędy</th><th class="th">Status</th>
+            </tr></thead>
+            <tbody id="runs-body" class="divide-y divide-gray-800/60 text-gray-300"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUGS -->
+    <section id="view-bugs" data-view class="hidden space-y-6">
+      <div class="card flex flex-wrap justify-between items-center gap-4 p-4">
+        <div id="filters" class="flex flex-wrap items-center gap-3"><span class="text-xs text-gray-400 font-semibold">Filtry:</span></div>
+        <p class="text-xs text-gray-400" aria-live="polite">Pokazywanie <strong id="bugs-count" class="text-white">0</strong> zgłoszeń</p>
+      </div>
+      <div class="card p-0 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-950 text-gray-400 border-b border-gray-800"><tr>
+              <th class="th">Błąd</th><th class="th">Kategoria</th><th class="th">Krytyczność</th><th class="th">Pewność AI</th><th class="th">Moduł</th><th class="th">Status</th><th class="th text-right">Akcja</th>
+            </tr></thead>
+            <tbody id="bugs-body" class="divide-y divide-gray-800/60 text-gray-300"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERFORMANCE -->
+    <section id="view-performance" data-view class="hidden space-y-6">
+      <div class="flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <h2 class="text-xl font-bold">Analiza telemetrii i wydajności</h2>
+          <p class="text-sm text-gray-400">Spadki FPS oraz zużycie pamięci RAM/VRAM</p>
+        </div>
+        <span class="bg-gray-900 text-brand-accent border border-gray-800 text-xs px-3 py-1.5 rounded-xl font-mono">UnrealEngine_Staging_x64</span>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-sm"><i class="fa-solid fa-gauge text-brand-accent mr-2" aria-hidden="true"></i>Profil FPS</h3>
+            <span id="fps-caption" class="text-xs text-rose-400 font-mono"></span>
+          </div>
+          <div class="h-64"><canvas id="fpsChart" aria-label="Wykres FPS"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-sm"><i class="fa-solid fa-memory text-purple-400 mr-2" aria-hidden="true"></i>Zużycie VRAM</h3>
+            <span class="text-xs text-amber-400 font-mono">Skok alokacji: 10.–15. min</span>
+          </div>
+          <div class="h-64"><canvas id="vramChart" aria-label="Wykres VRAM"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="font-bold text-sm mb-3">Zarejestrowane anomalie sprzętowe</h3>
+        <ul id="anomalies" class="space-y-2"></ul>
+      </div>
+    </section>
+
+    <!-- INTEGRATIONS -->
+    <section id="view-integrations" data-view class="hidden space-y-6">
+      <div>
+        <h2 class="text-xl font-bold">Integracje &amp; parametry AI Engine</h2>
+        <p class="text-sm text-gray-400">Połączenia z systemami zgłoszeniowymi oraz czułość detekcji</p>
+      </div>
+      <div id="integrations" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+      <div class="card p-6 space-y-6">
+        <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-sliders text-brand-accent" aria-hidden="true"></i>Progi czułości detekcji AI</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label for="cv-threshold" class="flex justify-between text-xs text-gray-300 font-medium">
+              Czułość detekcji artefaktów wizualnych
+              <output for="cv-threshold" data-bind="cv-threshold" data-suffix="%" class="text-brand-accent font-mono">85%</output>
+            </label>
+            <input id="cv-threshold" name="cvThreshold" type="range" min="50" max="99" value="85" class="w-full accent-brand-500 cursor-pointer">
+            <p class="text-[11px] text-gray-500">Wyższy próg zmniejsza liczbę fałszywych alarmów przy skomplikowanym oświetleniu.</p>
+          </div>
+          <label class="flex items-center justify-between p-2.5 bg-gray-950 rounded-xl border border-gray-800 text-xs text-gray-400 cursor-pointer">
+            Wymagaj odtworzenia kroku przed powiadomieniem Dev
+            <input name="doubleCheck" type="checkbox" checked class="w-4 h-4 accent-brand-500">
+          </label>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- MODAL: BUG -->
+<div id="bugModal" data-modal data-action="close-modal" data-backdrop data-modal-id="bugModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="bug-title">
+  <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="p-5 border-b border-gray-800 flex items-start justify-between bg-brand-dark">
+      <div class="flex items-center gap-3">
+        <span id="bug-severity"></span>
+        <div><h2 id="bug-title" class="text-lg font-bold"></h2><p id="bug-subtitle" class="text-xs text-gray-400"></p></div>
+      </div>
+      <button data-action="close-modal" data-modal-id="bugModal" data-autofocus aria-label="Zamknij" class="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-gray-800"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+    </div>
+    <div class="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+      <div>
+        <p class="font-bold uppercase tracking-wider text-[11px] mb-2"><i class="fa-solid fa-camera text-brand-accent mr-2" aria-hidden="true"></i>Dowód wizualny (AI Vision Frame)</p>
+        <div class="relative aspect-video rounded-xl overflow-hidden border border-gray-800 bg-gradient-to-br from-gray-900 via-indigo-950 to-black">
+          <div id="bug-bbox" class="absolute border-2 border-rose-500 bg-rose-500/20 rounded p-1"><span class="bg-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded">Visual Anomaly Detected</span></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-3">
+          <h3 class="font-bold text-brand-accent text-sm"><i class="fa-solid fa-robot mr-2" aria-hidden="true"></i>Kroki do odtworzenia</h3>
+          <ol id="bug-steps" class="list-decimal list-inside space-y-2 text-gray-300 leading-relaxed"></ol>
+        </div>
+        <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-3">
+          <h3 class="font-bold text-sm"><i class="fa-solid fa-microchip text-purple-400 mr-2" aria-hidden="true"></i>Środowisko</h3>
+          <dl id="bug-env" class="grid grid-cols-2 gap-2 text-gray-400"></dl>
+        </div>
+      </div>
+      <div>
+        <p class="font-bold uppercase tracking-wider text-[11px] mb-2"><i class="fa-solid fa-terminal text-amber-400 mr-2" aria-hidden="true"></i>Logi</p>
+        <pre id="bug-logs" class="bg-black p-4 rounded-xl border border-gray-800 text-[11px] text-gray-300 overflow-x-auto max-h-40 leading-relaxed"></pre>
+      </div>
+    </div>
+    <div class="p-4 border-t border-gray-800 bg-gray-950 flex flex-wrap justify-between gap-3">
+      <button id="btn-fp" data-action="false-positive" class="btn bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 disabled:opacity-40"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i>Oznacz jako False Positive</button>
+      <div class="flex gap-3">
+        <button data-action="export" data-target="Jira" class="btn bg-blue-600 hover:bg-blue-500"><i class="fa-brands fa-jira" aria-hidden="true"></i>Eksportuj do Jira</button>
+        <button data-action="export" data-target="Slack" class="btn bg-purple-600 hover:bg-purple-500"><i class="fa-brands fa-slack" aria-hidden="true"></i>Wyślij na Slack</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NEW TEST -->
+<div id="newTestModal" data-modal data-action="close-modal" data-backdrop data-modal-id="newTestModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="new-test-title">
+  <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
+    <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-brand-dark">
+      <h2 id="new-test-title" class="font-bold"><i class="fa-solid fa-play text-brand-500 mr-2" aria-hidden="true"></i>Uruchamianie nowej sesji AI QA</h2>
+      <button data-action="close-modal" data-modal-id="newTestModal" aria-label="Zamknij" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-800"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+    <form id="newTestForm" class="p-6 space-y-4 text-xs">
+      <div>
+        <label for="project" class="block text-gray-300 font-medium mb-1.5">Projekt / cel testu</label>
+        <select id="project" name="project" class="field w-full"></select>
+      </div>
+      <fieldset>
+        <legend class="text-gray-300 font-medium mb-1.5">Wybór agenta AI</legend>
+        <div id="agent-options" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+      </fieldset>
+      <div>
+        <label for="duration" class="block text-gray-300 font-medium mb-1.5">Czas trwania: <output for="duration" data-bind="duration" data-suffix=" minut" class="text-brand-accent font-mono font-bold">30 minut</output></label>
+        <input id="duration" name="duration" type="range" min="10" max="180" step="5" value="30" class="w-full accent-brand-500 cursor-pointer">
+      </div>
+      <div class="pt-4 border-t border-gray-800 flex justify-end gap-3">
+        <button type="button" data-action="close-modal" data-modal-id="newTestModal" class="btn bg-gray-800 text-gray-300 hover:bg-gray-700">Anuluj</button>
+        <button type="submit" class="btn bg-gradient-to-r from-brand-600 to-brand-purple hover:opacity-90">Uruchom agenty</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite" class="pointer-events-none fixed bottom-6 right-6 z-[60] flex items-center gap-3 bg-gray-900 border border-brand-500 px-4 py-3 rounded-xl shadow-2xl text-xs translate-y-20 opacity-0 transition-all duration-300">
+  <i class="fa-solid fa-circle-check text-brand-accent text-base" aria-hidden="true"></i><span id="toast-message"></span>
+</div>
+
+<script>
+'use strict';
+
+/* Helpers */
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const sum = (arr, fn) => arr.reduce((acc, x) => acc + fn(x), 0);
+const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, [one, few, many]) =>
+  n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? few : many;
+const percent = v => `${Math.round(v * 100)}%`;
+
+/* Stałe i dane */
+const SEVERITY = {
+  Blocker: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  Major:   'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  Minor:   'bg-blue-500/20 text-blue-400 border-blue-500/30',
+};
+const CATEGORIES = {
+  Visual:       { label: 'Visual / Texture',  color: '#6366f1' },
+  Logic:        { label: 'Logic / Soft-lock', color: '#f43f5e' },
+  Performance:  { label: 'Performance / FPS', color: '#f59e0b' },
+  Localization: { label: 'Localization / OCR', color: '#2dd4bf' },
+};
+const STATUSES = { Open: 'Otwarte', 'In Review': 'W weryfikacji', Resolved: 'Rozwiązane', 'False-Positive': 'False Positive' };
+const RUN_STATUSES = {
+  starting: { label: 'Uruchamianie…', cls: 'text-brand-accent bg-brand-500/10 border-brand-500/20' },
+  running:  { label: 'W trakcie',     cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+  done:     { label: 'Zakończony',    cls: 'text-gray-400 bg-gray-800 border-gray-700' },
+  aborted:  { label: 'Przerwany (Crash)', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
+};
+const TONES = {
+  rose:   { border: 'border-rose-500/30', text: 'text-rose-400', icon: 'bg-rose-500/10 border-rose-500/20 text-rose-400' },
+  indigo: { border: 'border-gray-800',    text: 'text-gray-400', icon: 'bg-brand-500/10 border-brand-500/20 text-brand-500' },
+  cyan:   { border: 'border-gray-800',    text: 'text-gray-400', icon: 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent' },
+  purple: { border: 'border-gray-800',    text: 'text-gray-400', icon: 'bg-purple-500/10 border-purple-500/20 text-purple-400' },
+  amber:  { border: 'border-amber-500/30', text: 'text-amber-400', icon: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },
+};
+const NAV = [
+  { id: 'dashboard',    icon: 'fa-chart-pie',            label: 'Dashboard' },
+  { id: 'testruns',     icon: 'fa-robot',                label: 'Test Runy & Agenci AI', badge: () => ({ text: `${activeAgents()} aktywnych`, cls: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' }) },
+  { id: 'bugs',         icon: 'fa-triangle-exclamation', label: 'Zgłoszenia błędów',     badge: () => ({ text: activeBugs().length, cls: 'bg-rose-500/20 text-rose-400 font-bold' }) },
+  { id: 'performance',  icon: 'fa-gauge-high',           label: 'Analiza wydajności' },
+  { id: 'integrations', icon: 'fa-sliders',              label: 'Integracje & AI' },
+];
+const AGENTS = {
+  explorer: { name: 'Agent Explorer',          desc: 'Swobodna eksploracja, wykrywanie kolizji i artefaktów wizualnych', icon: 'fa-compass',       tone: 'indigo', active: 3, total: 3 },
+  spec:     { name: 'Agent Spec-Driven',       desc: 'Asercje funkcjonalne wg dokumentacji PRD, logika UI i dialogów',    icon: 'fa-file-contract', tone: 'purple', active: 2, total: 2 },
+  chaos:    { name: 'Agent Stress & Chaos',    desc: 'Symulacja ekstremalnych akcji i kliknięć',                          icon: 'fa-volcano',       tone: 'amber',  active: 0, total: 1 },
+};
+const PROJECTS = [
+  'Cyberpunk RPG Game (Unreal Engine 5.3)',
+  'Mobile Banking App (Android APK / React Native)',
+  'E-Commerce Web Portal (Web Playwright Agent)',
+];
+const INTEGRATIONS = [
+  { icon: 'fa-brands fa-jira',   name: 'Atlassian Jira', desc: 'Automatyczne tworzenie zadań Bug po potwierdzeniu przez AI.',            meta: 'Projekt', value: 'AETHER-QA',   style: 'bg-blue-500/10 text-blue-400' },
+  { icon: 'fa-brands fa-github', name: 'GitHub Issues',  desc: 'Tworzenie Issue wraz ze stacktrace i klipem wideo w repozytorium.',      meta: 'Repo',    value: 'org/game-main', style: 'bg-gray-800 text-white' },
+  { icon: 'fa-brands fa-slack',  name: 'Slack Alerts',   desc: 'Natychmiastowe powiadomienia o awariach (Crash/Blocker).',               meta: 'Kanał',   value: '#qa-alerts',  style: 'bg-purple-500/10 text-purple-400' },
+];
+const SYSTEM = [['Silnik wizyjny AI', 'v3.4-Vision', 'text-emerald-400'], ['Wykorzystanie GPU', '68%', 'text-brand-accent']];
+const COVERAGE = 0.924;
+const HISTORY = { builds: ['#1080', '#1081', '#1082', '#1083', '#1084'], blockers: [1, 0, 2, 1], others: [3, 4, 2, 3] };
+const FEED = [
+  ['text-emerald-400', 'AI Agent: Moving towards Sector 7B collision box…'],
+  ['text-amber-400',   'Warning: Anomaly detected in normal map shader.'],
+  ['text-rose-400',    'Alert: Bounding box mismatch. Triggering snapshot.'],
+];
+const TELEMETRY = {
+  labels: ['0m', '5m', '10m', '15m', '20m', '25m', '30m'],
+  fps:    [60, 59, 58, 14, 60, 57, 60],
+  vram:   [3.2, 3.5, 4.1, 7.8, 8.2, 8.4, 8.5],
+  anomalies: [
+    { tone: 'rose',  icon: 'fa-arrow-trend-down', title: 'Drastyczny spadek FPS (60 → 14 FPS)', detail: 'Level_Forest_SectorB (kamera na Particle System #402)', time: '14:22:10' },
+    { tone: 'amber', icon: 'fa-microchip',        title: 'Skok alokacji Texture Buffer (+3.7 GB)', detail: 'Alokacja wzrosła między 10. a 15. minutą bez zwolnienia zasobu', time: '14:18:05' },
+  ],
+};
+
+const BUGS = [
+  { id: 'BUG-8092', title: 'Texture Clipping & Mesh Overlap w Sektorze B', category: 'Visual', severity: 'Blocker', confidence: 0.98,
+    module: 'Level_Forest_SectorB', status: 'Open', bbox: { top: '35%', left: '28%', width: '22%', height: '20%' },
+    steps: ['Agent przeszedł postacią do koordynatów X:402, Y:102.', 'Wykonano skok w stronę bariery skalnej.', 'Kamera przeniknęła przez teksturę terenu, odsłaniając pustą przestrzeń.'],
+    env: { Build: 'v1.4.12-Staging', GPU: 'Nvidia RTX 4090', OS: 'Windows 11 Enterprise', Driver: '551.23' },
+    logs: "[14:21:02] [GPU_Warning] Shader 'Terrain_Blend_Master' returned invalid vertex normal at (402.1, 102.4).\n[14:21:03] [AetherQA_Vision] Bounding box triggered, confidence 0.984.\n[14:21:03] [Camera_Error] Near clipping plane breached." },
+  { id: 'BUG-8093', title: 'Soft-lock w dialogu NPC Questmaster', category: 'Logic', severity: 'Blocker', confidence: 0.95,
+    module: 'Quest_System_V2', status: 'In Review', bbox: { top: '50%', left: '40%', width: '30%', height: '25%' },
+    steps: ["Rozpoczęto dialog z NPC 'Master Eldrin'.", 'Przeklikano opcje 1 → 3 → 2 w odstępie 50 ms.', "Przycisk 'Zamknij' stracił stan interaktywny; agent nie mógł opuścić ekranu."],
+    env: { Build: 'v1.4.12-Staging', 'UI Engine': 'Slate / UMG', OS: 'Windows 11' },
+    logs: "[14:15:20] [UI_Error] Accessed None: focused widget became null during animation state 'Closing'.\n[14:15:21] [AI_Agent] Stuck state detected: no interactive elements for 30 s." },
+  { id: 'BUG-8094', title: 'Spadek FPS poniżej 15 klatek przy skumulowanych efektach cząsteczkowych', category: 'Performance', severity: 'Major', confidence: 0.97,
+    module: 'VFX_ParticleManager', status: 'Open', bbox: { top: '20%', left: '20%', width: '60%', height: '50%' },
+    steps: ["Zespawnowano 10 jednostek 'Mage' rzucających zaklęcie obszarowe.", 'System cząsteczek wygenerował ponad 100 000 instancji bez LOD.', 'Renderowanie spadło z 60 do 14 FPS.'],
+    env: { Build: 'v1.4.12-Staging', Resolution: '3840x2160', 'VRAM Usage': '11.8 GB' },
+    logs: '[14:02:11] [Perf_Alert] Frame time exceeded 66.6 ms.\n[14:02:12] [Particle_System] Max particle count reached; dropping frames.' },
+  { id: 'BUG-8095', title: 'Przepełnienie ramki tekstu w niemieckiej lokalizacji', category: 'Localization', severity: 'Minor', confidence: 0.91,
+    module: 'UI_InventoryScreen', status: 'Resolved', bbox: { top: '60%', left: '10%', width: '25%', height: '15%' },
+    steps: ["Przełączono język interfejsu na 'German (de_DE)'.", 'Otwarto kartę ulepszeń przedmiotu.', "Słowo 'Ausrüstungsgegenstand' wykracza poza obramowanie przycisku."],
+    env: { Build: 'v1.4.11-Staging', Language: 'de_DE' },
+    logs: '[13:45:00] [OCR_Vision] Text truncation detected by bounding box validation model.' },
+];
+const RUNS = [
+  { id: 'RUN-9901', target: 'Unreal Engine 5.3 (RPG)',    agent: 'Agent Explorer',    duration: '45 min',  bugs: 4, status: 'running' },
+  { id: 'RUN-9900', target: 'Android Mobile App',         agent: 'Agent Spec-Driven', duration: '120 min', bugs: 2, status: 'done' },
+  { id: 'RUN-9899', target: 'Web Application Playwright', agent: 'Agent Stress',      duration: '15 min',  bugs: 8, status: 'aborted' },
+];
+
+/* Stan */
+const state = {
+  tab: 'dashboard',
+  query: '',
+  filters: { severity: 'ALL', category: 'ALL', status: 'ALL' },
+  currentBugId: null,
+  settings: { cvThreshold: 85, doubleCheck: true },
+  bugs: BUGS,
+  runs: RUNS,
+};
+const activeBugs   = () => state.bugs.filter(b => b.status !== 'False-Positive');
+const activeAgents = () => sum(Object.values(AGENTS), a => a.active);
+const countBy = (items, fn) => items.reduce((acc, x) => ((acc[fn(x)] = (acc[fn(x)] || 0) + 1), acc), {});
+
+/* Komponenty */
+const severityBadge = (sev, extra = '') =>
+  `<span class="px-2 py-0.5 rounded border text-[10px] font-bold uppercase ${SEVERITY[sev] ?? SEVERITY.Minor} ${extra}">${esc(sev)}</span>`;
+
+const NAV_BASE   = 'flex items-center justify-center lg:justify-start gap-3 w-full px-3.5 py-2.5 rounded-xl border text-sm font-medium transition-all';
+const NAV_ACTIVE = 'text-brand-500 bg-brand-500/10 border-brand-500/30';
+const NAV_IDLE   = 'text-gray-400 border-transparent hover:text-white hover:bg-gray-800/50';
+
+function renderNav() {
+  $('#nav').innerHTML = NAV.map(n => {
+    const on = n.id === state.tab;
+    const badge = n.badge?.();
+    return `<button data-action="switch-tab" data-target="${n.id}" ${on ? 'aria-current="page"' : ''} title="${esc(n.label)}" class="${NAV_BASE} ${on ? NAV_ACTIVE : NAV_IDLE}">
+      <i class="fa-solid ${n.icon} w-5 text-center ${on ? 'text-brand-accent' : ''}" aria-hidden="true"></i>
+      <span class="hidden lg:inline">${esc(n.label)}</span>
+      ${badge ? `<span class="hidden lg:inline ml-auto text-xs px-2 py-0.5 rounded-full ${badge.cls}">${esc(badge.text)}</span>` : ''}
+    </button>`;
+  }).join('');
+}
+
+function renderSystemStatus() {
+  $('#system-status').innerHTML = SYSTEM.map(([k, v, cls]) =>
+    `<div class="flex justify-between"><dt class="text-gray-400">${k}:</dt><dd class="font-mono font-bold ${cls}">${v}</dd></div>`).join('');
+}
+
+function renderKpis() {
+  const bugs = activeBugs();
+  const blockers = bugs.filter(b => b.severity === 'Blocker').length;
+  const delta = blockers - HISTORY.blockers.at(-1);
+  const highConf = bugs.length ? bugs.filter(b => b.confidence >= 0.9).length / bugs.length : 0;
+  const total = sum(Object.values(AGENTS), a => a.total);
+  const n = activeAgents();
+
+  const cards = [
+    { label: 'Błędy krytyczne (Blockers)', value: blockers, icon: 'fa-skull-crossbones', tone: 'rose',
+      note: `${delta >= 0 ? '+' : ''}${delta} vs poprzedni build`, noteCls: 'text-rose-300' },
+    { label: 'Wykryte niezgodności', value: bugs.length, icon: 'fa-bug', tone: 'indigo',
+      note: `${percent(highConf)} z pewnością AI ≥ 90%`, noteCls: 'text-emerald-400' },
+    { label: 'Pokrycie scenariuszy', value: percent(COVERAGE), icon: 'fa-map', tone: 'cyan',
+      bar: COVERAGE * 100 },
+    { label: 'Aktywne boty AI', value: `${n} ${plural(n, ['agent', 'agenci', 'agentów'])}`, icon: 'fa-network-wired', tone: 'purple',
+      note: `z ${total} w puli`, noteCls: 'text-gray-400' },
+  ];
+  $('#kpis').innerHTML = cards.map(c => {
+    const t = TONES[c.tone];
+    return `<article class="card ${t.border}">
+      <div class="flex justify-between items-start">
+        <div><p class="text-xs font-semibold tracking-wider uppercase ${t.text}">${c.label}</p><p class="text-3xl font-extrabold mt-1">${c.value}</p></div>
+        <div class="p-3 border rounded-xl ${t.icon}"><i class="fa-solid ${c.icon} text-xl" aria-hidden="true"></i></div>
+      </div>
+      ${c.bar !== undefined
+        ? `<div class="mt-4 h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-accent" style="width:${c.bar}%"></div></div>`
+        : `<p class="mt-4 text-xs ${c.noteCls}">${c.note}</p>`}
+    </article>`;
+  }).join('');
+}
+
+function renderRecentBugs() {
+  $('#recent-bugs').innerHTML = activeBugs().map(b => `
+    <li><button data-action="open-bug" data-id="${esc(b.id)}" class="group w-full text-left p-3 bg-gray-950 border border-gray-800 hover:border-brand-500/50 rounded-xl flex items-center justify-between gap-3 transition-colors">
+      <span class="flex items-center gap-3 min-w-0">
+        ${severityBadge(b.severity)}
+        <span class="min-w-0">
+          <span class="block font-bold text-xs text-gray-200 group-hover:text-brand-accent truncate">${esc(b.title)}</span>
+          <span class="block text-[11px] text-gray-500">${esc(b.id)} • ${esc(b.module)} • Pewność AI: ${percent(b.confidence)}</span>
+        </span>
+      </span>
+      <i class="fa-solid fa-chevron-right text-gray-600 text-xs" aria-hidden="true"></i>
+    </button></li>`).join('');
+}
+
+function renderFilters() {
+  const select = (name, allLabel, options) => `
+    <select name="${name}" aria-label="${allLabel}" class="field">
+      <option value="ALL">${allLabel}</option>
+      ${Object.entries(options).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}
+    </select>`;
+  $('#filters').insertAdjacentHTML('beforeend',
+    select('severity', 'Wszystkie poziomy', Object.fromEntries(Object.keys(SEVERITY).map(s => [s, s]))) +
+    select('category', 'Wszystkie kategorie', Object.fromEntries(Object.entries(CATEGORIES).map(([k, c]) => [k, c.label]))) +
+    select('status', 'Wszystkie statusy', STATUSES));
+}
+
+function renderBugsTable() {
+  const { severity, category, status } = state.filters;
+  const q = state.query;
+  const rows = state.bugs.filter(b =>
+    (severity === 'ALL' || b.severity === severity) &&
+    (category === 'ALL' || b.category === category) &&
+    (status === 'ALL' || b.status === status) &&
+    (!q || `${b.id} ${b.title} ${b.module}`.toLowerCase().includes(q)));
+
+  $('#bugs-count').textContent = rows.length;
+  $('#bugs-body').innerHTML = rows.length ? rows.map(b => `
+    <tr class="hover:bg-gray-800/40">
+      <td class="td"><div class="font-bold text-gray-200">${esc(b.title)}</div><span class="text-[10px] font-mono text-gray-500">${esc(b.id)}</span></td>
+      <td class="td"><span class="bg-gray-800 border border-gray-700 px-2 py-0.5 rounded font-mono text-[10px]">${esc(CATEGORIES[b.category]?.label ?? b.category)}</span></td>
+      <td class="td">${severityBadge(b.severity)}</td>
+      <td class="td font-mono text-emerald-400">${percent(b.confidence)}</td>
+      <td class="td font-mono text-gray-400">${esc(b.module)}</td>
+      <td class="td"><span class="px-2 py-0.5 rounded text-[10px] bg-gray-800">${esc(STATUSES[b.status] ?? b.status)}</span></td>
+      <td class="td text-right"><button data-action="open-bug" data-id="${esc(b.id)}" class="px-3 py-1.5 bg-brand-500/10 border border-brand-500/30 text-brand-accent hover:bg-brand-500 hover:text-white rounded-lg transition-colors">Szczegóły</button></td>
+    </tr>`).join('')
+    : `<tr><td colspan="7" class="td text-center text-gray-500 py-8">Brak zgłoszeń spełniających kryteria.</td></tr>`;
+}
+
+function renderAgents() {
+  $('#agents').innerHTML = Object.values(AGENTS).map(a => {
+    const t = TONES[a.tone];
+    const status = a.active
+      ? `<span class="text-emerald-400 bg-emerald-500/10">${a.active}/${a.total} aktywne</span>`
+      : `<span class="text-gray-400 bg-gray-800">Oczekiwanie</span>`;
+    return `<article class="card flex items-center gap-4 p-4">
+      <div class="w-12 h-12 shrink-0 rounded-xl border flex items-center justify-center text-xl ${t.icon}"><i class="fa-solid ${a.icon}" aria-hidden="true"></i></div>
+      <div><h3 class="font-bold text-sm">${a.name}</h3><p class="text-xs text-gray-400 mt-0.5">${a.desc}</p>
+      <div class="mt-2 text-[10px] font-bold [&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded">${status}</div></div>
+    </article>`;
+  }).join('');
+}
+
+function renderRuns() {
+  $('#runs-body').innerHTML = state.runs.map(r => {
+    const s = RUN_STATUSES[r.status];
+    return `<tr class="hover:bg-gray-800/40">
+      <td class="td font-mono font-bold text-brand-accent">${esc(r.id)}</td>
+      <td class="td font-semibold text-white">${esc(r.target)}</td>
+      <td class="td">${esc(r.agent)}</td>
+      <td class="td font-mono text-gray-400">${esc(r.duration)}</td>
+      <td class="td font-bold text-rose-400">${r.bugs} ${plural(r.bugs, ['błąd', 'błędy', 'błędów'])}</td>
+      <td class="td"><span class="px-2 py-0.5 rounded border text-[10px] font-bold ${s.cls}">${s.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStatic() {
+  $('#live-feed').innerHTML = FEED.map(([cls, text]) => `<p class="${cls}">&gt; ${esc(text)}</p>`).join('');
+  $('#integrations').innerHTML = INTEGRATIONS.map(i => `
+    <article class="card flex flex-col justify-between">
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl ${i.style}"><i class="${i.icon}" aria-hidden="true"></i></div>
+          <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Połączono</span>
+        </div>
+        <h3 class="font-bold">${i.name}</h3><p class="text-xs text-gray-400">${i.desc}</p>
+      </div>
+      <div class="mt-4 pt-4 border-t border-gray-800 flex justify-between text-xs">
+        <span class="text-gray-500">${i.meta}: <strong>${i.value}</strong></span>
+        <button data-action="demo" class="text-brand-accent hover:underline">Konfiguruj</button>
+      </div>
+    </article>`).join('');
+  $('#anomalies').innerHTML = TELEMETRY.anomalies.map(a => {
+    const t = TONES[a.tone];
+    return `<li class="p-3 bg-gray-950 border ${t.border} rounded-xl flex items-center justify-between gap-3 text-xs">
+      <span class="flex items-center gap-3"><span class="p-2 rounded-lg ${t.icon}"><i class="fa-solid ${a.icon}" aria-hidden="true"></i></span>
+      <span><span class="block font-bold text-white">${a.title}</span><span class="text-gray-500">${a.detail}</span></span></span>
+      <time class="font-mono text-gray-400">${a.time}</time></li>`;
+  }).join('');
+  $('#fps-caption').textContent = `Poniżej 30 FPS: ${TELEMETRY.fps.filter(v => v < 30).length} ${plural(TELEMETRY.fps.filter(v => v < 30).length, ['wykrycie', 'wykrycia', 'wykryć'])}`;
+  $('#project').innerHTML = PROJECTS.map(p => `<option>${esc(p)}</option>`).join('');
+  $('#agent-options').innerHTML = Object.entries(AGENTS).map(([key, a], i) => `
+    <label class="border border-gray-800 bg-gray-950 p-3 rounded-xl cursor-pointer flex items-start gap-2 hover:border-gray-700 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/10">
+      <input type="radio" name="agent" value="${key}" ${i === 0 ? 'checked' : ''} class="mt-0.5 accent-brand-500">
+      <span><span class="block font-bold text-white">${a.name}</span><span class="block text-[10px] text-gray-400">${a.desc}</span></span>
+    </label>`).join('');
+}
+
+/* Wykresy */
+const charts = {};
+function upsertChart(key, canvasId, type, data, options = {}) {
+  if (charts[key]) { charts[key].data = data; charts[key].update(); return; }
+  charts[key] = new Chart($(canvasId), { type, data, options: { responsive: true, maintainAspectRatio: false, ...options } });
+}
+const lineDataset = (label, data, color) => ({ label, data, borderColor: color, backgroundColor: `${color}1a`, fill: true, tension: 0.3 });
+
+function renderDashboardCharts() {
+  const bugs = activeBugs();
+  const blockers = bugs.filter(b => b.severity === 'Blocker').length;
+  upsertChart('trend', '#trendChart', 'line', {
+    labels: HISTORY.builds.map(b => `Build ${b}`),
+    datasets: [
+      lineDataset('Blocker / Critical', [...HISTORY.blockers, blockers], '#f43f5e'),
+      lineDataset('Major / Minor', [...HISTORY.others, bugs.length - blockers], '#6366f1'),
+    ],
+  }, { plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
+
+  const counts = countBy(bugs, b => b.category);
+  const keys = Object.keys(CATEGORIES);
+  upsertChart('category', '#categoryChart', 'doughnut', {
+    labels: keys.map(k => CATEGORIES[k].label),
+    datasets: [{ data: keys.map(k => counts[k] || 0), backgroundColor: keys.map(k => CATEGORIES[k].color), borderWidth: 0 }],
+  }, { plugins: { legend: { display: false } } });
+
+  $('#category-legend').innerHTML = keys.map(k => {
+    const share = bugs.length ? (counts[k] || 0) / bugs.length : 0;
+    return `<li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:${CATEGORIES[k].color}"></span>
+      <span class="text-gray-300">${CATEGORIES[k].label} (${percent(share)})</span></li>`;
+  }).join('');
+}
+
+function initPerformanceCharts() {
+  if (charts.fps) return;
+  upsertChart('fps', '#fpsChart', 'line', {
+    labels: TELEMETRY.labels, datasets: [lineDataset(t('Klatki na sekundę (FPS)'), TELEMETRY.fps, '#00f2fe')],
+  }, { scales: { y: { min: 0, max: 70 } } });
+  upsertChart('vram', '#vramChart', 'line', {
+    labels: TELEMETRY.labels, datasets: [lineDataset(t('Użycie VRAM (GB)'), TELEMETRY.vram, '#9d4edd')],
+  });
+}
+
+function destroyAllCharts() {
+  Object.keys(charts).forEach(k => {
+    charts[k]?.destroy();
+    delete charts[k];
+  });
+}
+
+/* Nawigacja, modale, toast */
+function switchTab(tab) {
+  state.tab = tab;
+  $$('[data-view]').forEach(s => s.classList.toggle('hidden', s.id !== `view-${tab}`));
+  renderNav();
+  if (tab === 'performance') initPerformanceCharts();
+  $('#view-container').scrollTo(0, 0);
+}
+
+let lastFocus = null;
+function openModal(id) {
+  lastFocus = document.activeElement;
+  const modal = document.getElementById(id);
+  modal.classList.remove('hidden');
+  (modal.querySelector('[data-autofocus]') ?? modal.querySelector('select, input, button'))?.focus();
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  lastFocus?.focus?.();
+}
+
+let toastTimer;
+function showToast(message) {
+  const toast = $('#toast');
+  $('#toast-message').textContent = message;
+  toast.classList.remove('translate-y-20', 'opacity-0');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+}
+
+/* Logika domenowa */
+function openBug(id) {
+  const bug = state.bugs.find(b => b.id === id);
+  if (!bug) return showToast(`Nie znaleziono zgłoszenia ${id}`);
+  state.currentBugId = id;
+
+  $('#bug-severity').className = `px-2.5 py-1 rounded-lg border text-xs font-extrabold uppercase ${SEVERITY[bug.severity] ?? SEVERITY.Minor}`;
+  $('#bug-severity').textContent = bug.severity;
+  $('#bug-title').textContent = bug.title;
+  $('#bug-subtitle').textContent = `${bug.id} | Moduł: ${bug.module} | Pewność AI: ${percent(bug.confidence)}`;
+  Object.assign($('#bug-bbox').style, bug.bbox);
+  $('#bug-steps').innerHTML = bug.steps.map(s => `<li>${esc(s)}</li>`).join('');
+  $('#bug-env').innerHTML = Object.entries(bug.env).map(([k, v]) =>
+    `<div><dt class="inline text-gray-500">${esc(k)}:</dt> <dd class="inline font-bold text-gray-200">${esc(v)}</dd></div>`).join('');
+  $('#bug-logs').textContent = bug.logs;
+  $('#btn-fp').disabled = bug.status === 'False-Positive';
+  openModal('bugModal');
+}
+
+function markFalsePositive() {
+  const bug = state.bugs.find(b => b.id === state.currentBugId);
+  if (!bug) return;
+  bug.status = 'False-Positive';
+  closeModal('bugModal');
+  renderAll();
+  showToast(`${bug.id} oznaczono jako False Positive`);
+}
+
+function exportBug(target) {
+  const bug = state.bugs.find(b => b.id === state.currentBugId);
+  showToast(`${bug?.id ?? 'Zgłoszenie'}: eksport do ${target} (symulacja)`);
+}
+
+function startRun({ project, agent, duration }) {
+  const type = AGENTS[agent];
+  type.active += 1;
+  type.total = Math.max(type.total, type.active);
+  const nextId = Math.max(...state.runs.map(r => Number(r.id.split('-')[1]))) + 1;
+  const run = { id: `RUN-${nextId}`, target: project, agent: type.name, duration: `0 / ${duration} min`, bugs: 0, status: 'starting' };
+  state.runs.unshift(run);
+  renderAll();
+  setTimeout(() => { run.status = 'running'; renderRuns(); }, 3000);
+  showToast(`Uruchomiono sesję ${run.id}`);
+}
+
+function renderAll() {
+  renderNav(); renderKpis(); renderRecentBugs(); renderBugsTable();
+  renderAgents(); renderRuns(); renderDashboardCharts();
+}
+
+/* Zdarzenia */
+const ACTIONS = {
+  'switch-tab':     el => switchTab(el.dataset.target),
+  'open-bug':       el => openBug(el.dataset.id),
+  'open-new-test':  () => openModal('newTestModal'),
+  'close-modal':    (el, e) => { if (!el.hasAttribute('data-backdrop') || e.target === el) closeModal(el.dataset.modalId); },
+  'false-positive': markFalsePositive,
+  'export':         el => exportBug(el.dataset.target),
+  'demo':           () => showToast('Ta funkcja nie jest dostępna w wersji demo'),
+  'set-lang':       el => setLang(el.dataset.lang),
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  ACTIONS[el?.dataset.action]?.(el, e);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $$('[data-modal]:not(.hidden)').forEach(m => closeModal(m.id));
+});
+
+document.addEventListener('input', e => {
+  const { name, type, checked, value } = e.target;
+  if (name in state.settings) state.settings[name] = type === 'checkbox' ? checked : Number(value);
+  const out = $(`[data-bind="${e.target.id}"]`);
+  if (out) out.textContent = `${value}${out.dataset.suffix ?? ''}`;
+});
+
+$('#filters').addEventListener('change', e => {
+  state.filters[e.target.name] = e.target.value;
+  renderBugsTable();
+});
+
+$('#search').addEventListener('input', e => {
+  state.query = e.target.value.trim().toLowerCase();
+  renderBugsTable();
+  if (state.tab !== 'bugs') switchTab('bugs');
+});
+
+$('#newTestForm').addEventListener('submit', e => {
+  e.preventDefault();
+  startRun(Object.fromEntries(new FormData(e.currentTarget)));
+  closeModal('newTestModal');
+});
+
+/* i18n (PL ↔ EN) */
+const EN = {
+  'Test Runy & Agenci AI': 'Test Runs & AI Agents', 'Zgłoszenia błędów': 'Bug Reports', 'Analiza wydajności': 'Performance Analysis',
+  'Integracje & AI': 'Integrations & AI', 'Główna nawigacja': 'Main navigation', 'Nowy Test AI': 'New AI Test',
+  'Silnik wizyjny AI:': 'AI vision engine:', 'Wykorzystanie GPU:': 'GPU usage:', 'Szukaj zgłoszeń': 'Search reports',
+  'Szukaj błędów, modułów…': 'Search bugs, modules…', 'Środowisko:': 'Environment:', 'Powiadomienia': 'Notifications',
+  'Błędy krytyczne (Blockers)': 'Critical bugs (Blockers)', 'Wykryte niezgodności': 'Detected issues',
+  'Pokrycie scenariuszy': 'Scenario coverage', 'Aktywne boty AI': 'Active AI bots',
+  'Trend wykrywania błędów vs build': 'Bug detection trend vs build',
+  'Ostatnie 5 buildów; ostatni punkt liczony z bieżącej listy zgłoszeń': 'Last 5 builds; the last point is computed from the current report list',
+  'Kategorie niezgodności': 'Issue categories', 'Klasyfikacja automatyczna przez LLM': 'Automatic classification by LLM',
+  'Trend błędów': 'Bug trend', 'Podział na kategorie': 'Category breakdown', 'Podgląd na żywo': 'Live preview',
+  'Ostatnio wykryte niezgodności': 'Recently detected issues', 'Zobacz wszystkie': 'View all',
+  'Aktywne i zaplanowane Test Runs': 'Active and scheduled Test Runs', 'Zarządzaj flotą autonomicznych agentów AI': 'Manage your fleet of autonomous AI agents',
+  'Uruchom nową sesję': 'Start new session', 'Historia sesji testowych': 'Test session history',
+  'Cel': 'Target', 'Czas': 'Time', 'Błędy': 'Bugs', 'Oczekiwanie': 'Waiting',
+  'Swobodna eksploracja, wykrywanie kolizji i artefaktów wizualnych': 'Free exploration, collision and visual artifact detection',
+  'Asercje funkcjonalne wg dokumentacji PRD, logika UI i dialogów': 'Functional assertions based on PRD docs, UI and dialog logic',
+  'Symulacja ekstremalnych akcji i kliknięć': 'Simulation of extreme actions and clicks',
+  'Uruchamianie…': 'Starting…', 'W trakcie': 'Running', 'Zakończony': 'Finished', 'Przerwany (Crash)': 'Aborted (Crash)',
+  'Filtry:': 'Filters:', 'Pokazywanie': 'Showing', 'zgłoszeń': 'reports', 'Błąd': 'Bug', 'Kategoria': 'Category',
+  'Krytyczność': 'Severity', 'Pewność AI': 'AI confidence', 'Moduł': 'Module', 'Akcja': 'Action', 'Szczegóły': 'Details',
+  'Brak zgłoszeń spełniających kryteria.': 'No reports match the criteria.',
+  'Wszystkie poziomy': 'All severities', 'Wszystkie kategorie': 'All categories', 'Wszystkie statusy': 'All statuses',
+  'Otwarte': 'Open', 'W weryfikacji': 'In review', 'Rozwiązane': 'Resolved',
+  'Analiza telemetrii i wydajności': 'Telemetry and performance analysis', 'Spadki FPS oraz zużycie pamięci RAM/VRAM': 'FPS drops and RAM/VRAM usage',
+  'Profil FPS': 'FPS profile', 'Zużycie VRAM': 'VRAM usage', 'Skok alokacji: 10.–15. min': 'Allocation spike: min 10–15',
+  'Wykres FPS': 'FPS chart', 'Wykres VRAM': 'VRAM chart', 'Zarejestrowane anomalie sprzętowe': 'Recorded hardware anomalies',
+  'Klatki na sekundę (FPS)': 'Frames per second (FPS)', 'Użycie VRAM (GB)': 'VRAM usage (GB)',
+  'Drastyczny spadek FPS (60 → 14 FPS)': 'Severe FPS drop (60 → 14 FPS)',
+  'Level_Forest_SectorB (kamera na Particle System #402)': 'Level_Forest_SectorB (camera facing Particle System #402)',
+  'Skok alokacji Texture Buffer (+3.7 GB)': 'Texture Buffer allocation spike (+3.7 GB)',
+  'Alokacja wzrosła między 10. a 15. minutą bez zwolnienia zasobu': 'Allocation grew between minute 10 and 15 without being released',
+  'Integracje & parametry AI Engine': 'Integrations & AI Engine parameters',
+  'Połączenia z systemami zgłoszeniowymi oraz czułość detekcji': 'Connections to ticketing systems and detection sensitivity',
+  'Połączono': 'Connected', 'Konfiguruj': 'Configure', 'Projekt:': 'Project:', 'Kanał:': 'Channel:',
+  'Automatyczne tworzenie zadań Bug po potwierdzeniu przez AI.': 'Automatic Bug ticket creation once confirmed by AI.',
+  'Tworzenie Issue wraz ze stacktrace i klipem wideo w repozytorium.': 'Creates an Issue with stacktrace and video clip in the repository.',
+  'Natychmiastowe powiadomienia o awariach (Crash/Blocker).': 'Instant notifications about failures (Crash/Blocker).',
+  'Progi czułości detekcji AI': 'AI detection sensitivity thresholds', 'Czułość detekcji artefaktów wizualnych': 'Visual artifact detection sensitivity',
+  'Wyższy próg zmniejsza liczbę fałszywych alarmów przy skomplikowanym oświetleniu.': 'A higher threshold reduces false alarms under complex lighting.',
+  'Wymagaj odtworzenia kroku przed powiadomieniem Dev': 'Require step reproduction before notifying Dev',
+  'Zamknij': 'Close', 'Dowód wizualny (AI Vision Frame)': 'Visual evidence (AI Vision Frame)', 'Kroki do odtworzenia': 'Steps to reproduce',
+  'Środowisko': 'Environment', 'Logi': 'Logs', 'Oznacz jako False Positive': 'Mark as False Positive',
+  'Eksportuj do Jira': 'Export to Jira', 'Wyślij na Slack': 'Send to Slack',
+  'Uruchamianie nowej sesji AI QA': 'Starting a new AI QA session', 'Projekt / cel testu': 'Project / test target',
+  'Wybór agenta AI': 'AI agent selection', 'Czas trwania:': 'Duration:', 'Anuluj': 'Cancel', 'Uruchom agenty': 'Run agents',
+  'Ta funkcja nie jest dostępna w wersji demo': 'This feature is not available in the demo',
+};
+
+const n1 = (n, one, many) => `${n} ${Number(n) === 1 ? one : many}`;
+const EN_RULES = [
+  [/^(\d+) aktywnych$/, '$1 active'],
+  [/^(\d+)\/(\d+) aktywne$/, '$1/$2 active'],
+  [/^(\d+) (?:agent|agenci|agentów)$/, (_, n) => n1(n, 'agent', 'agents')],
+  [/^(\d+) (?:błąd|błędy|błędów)$/, (_, n) => n1(n, 'bug', 'bugs')],
+  [/^z (\d+) w puli$/, 'of $1 in pool'],
+  [/^([+-]?\d+) vs poprzedni build$/, '$1 vs previous build'],
+  [/^(\d+%) z pewnością AI ≥ 90%$/, '$1 with AI confidence ≥ 90%'],
+  [/^(\d+) minut$/, '$1 minutes'],
+  [/^Poniżej 30 FPS: (\d+) \S+$/, (_, n) => `Below 30 FPS: ${n1(n, 'detection', 'detections')}`],
+  [/^Uruchomiono sesję (.+)$/, 'Started session $1'],
+  [/^(.+) oznaczono jako False Positive$/, '$1 marked as False Positive'],
+  [/^(.+): eksport do (.+) \(symulacja\)$/, '$1: export to $2 (simulated)'],
+  [/^Nie znaleziono zgłoszenia (.+)$/, 'Report $1 not found'],
+  [/Pewność AI/g, 'AI confidence'],
+  [/Moduł:/g, 'Module:'],
+];
+
+let lang = (() => {
+  try { const saved = localStorage.getItem('lang'); if (saved === 'pl' || saved === 'en') return saved; } catch {}
+  return navigator.language?.toLowerCase().startsWith('pl') ? 'pl' : 'en';
+})();
+
+function tr(text) {
+  const match = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  if (!match) return text;
+  const [, pre, core, post] = match;
+  let out = EN[core];
+  if (out === undefined) out = EN_RULES.reduce((acc, [re, rep]) => acc.replace(re, rep), core);
+  return pre + out + post;
+}
+const t = text => (lang === 'en' ? tr(text) : text);
+
+const originalText = new WeakMap();
+const originalAttrs = new WeakMap();
+const I18N_ATTRS = ['placeholder', 'aria-label', 'title'];
+
+function translateText(node) {
+  const src = originalText.get(node) ?? node.data;
+  if (!/\p{L}/u.test(src)) return;
+  originalText.set(node, src);
+  const out = lang === 'en' ? tr(src) : src;
+  if (node.data !== out) node.data = out;
+}
+
+function translateAttrs(el) {
+  if (el.nodeType !== Node.ELEMENT_NODE) return;
+  for (const attr of I18N_ATTRS) {
+    if (!el.hasAttribute(attr)) continue;
+    const saved = originalAttrs.get(el) ?? {};
+    saved[attr] ??= el.getAttribute(attr);
+    originalAttrs.set(el, saved);
+    el.setAttribute(attr, lang === 'en' ? tr(saved[attr]) : saved[attr]);
+  }
+}
+
+function translateTree(root) {
+  if (root.nodeType === Node.TEXT_NODE) return translateText(root);
+  if (root.nodeType !== Node.ELEMENT_NODE) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => /^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(translateText);
+  [root, ...root.querySelectorAll('[placeholder],[aria-label],[title]')].forEach(translateAttrs);
+}
+
+// Zabezpieczony MutationObserver zapobiegający pętlom zwrotnym
+let isTranslating = false;
+const i18nObserver = new MutationObserver(mutations => {
+  if (lang === 'pl' || isTranslating) return;
+  isTranslating = true;
+  mutations.forEach(m => m.addedNodes.forEach(translateTree));
+  isTranslating = false;
+});
+
+function setLang(next) {
+  lang = next;
+  try { localStorage.setItem('lang', lang); } catch {}
+  document.documentElement.lang = lang;
+  
+  i18nObserver.disconnect();
+  translateTree(document.body);
+  i18nObserver.observe(document.body, { childList: true, subtree: true });
+
+  $$('#lang-switch [data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  
+  // Przebudowa instancji wszystkich wykresów po zmianie słownika
+  destroyAllCharts();
+  renderDashboardCharts();
+  if (state.tab === 'performance') initPerformanceCharts();
+}
+
+/* Start */
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = '#1f2937';
+renderSystemStatus();
+renderStatic();
+renderFilters();
+renderAll();
+setLang(lang);
+</script>
+</body>
+</html>
