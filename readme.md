@@ -21,10 +21,16 @@ Experience the live application hosted via GitHub Pages:
 
 ### ✨ Key Features
 - **🤖 Autonomous AI Agents Dispatcher**: Manage dynamic test suites using Explorer, Spec-Driven, and Chaos/Stress testing agents.
-- **📊 Real-Time Telemetry & Performance Tracking**: Monitor hardware anomalies, memory memory spikes (RAM/VRAM), and framerate drops (FPS).
+- **📊 Real-Time Telemetry & Performance Tracking**: Monitor hardware anomalies, memory spikes (RAM/VRAM), and framerate drops (FPS).
 - **🌐 Zero-Latency i18n Language Toggle**: Instant switching between English and Polish powered by an optimized DOM `MutationObserver`.
 - **🎯 Visual Bounding Box Proof**: Interactive overlay displaying bounding boxes detected by vision AI models.
 - **⚡ Zero-Dependency SPA Architecture**: Entire application runs from a single optimized `index.html` file without requiring node packages, build steps, or external servers.
+
+### 💖 Sponsorship & Support
+> **Code doesn't write itself (yet!) – Want more AI tools? Fuel the next project! 🚀**  
+> If this project helped you or saved you time, consider supporting open-source development with a crypto donation:
+
+- **Bitcoin (BTC):** `bc1pjgctwfj5csuffdt54cl663830e77d88a65agatx2csfffedwr73q7hegq9`
 
 ### 🛠️ Tech Stack
 - **Frontend Framework:** HTML5, TailwindCSS 3.4 (JIT CDN), Vanilla JavaScript (ES6+).
@@ -48,6 +54,12 @@ Zobacz wersję demonstracyjną udostępnioną na GitHub Pages:
 - **🌐 Dynamiczne Przełączanie Języków (PL/EN)**: Bezpośrednia zmiana języka interfejsu w czasie rzeczywistym bazująca na mechanizmie `MutationObserver`.
 - **🎯 Wizualne Dowody Detekcji Błędów**: Prezentacja obszarów błędów (bounding boxes) zintegrowana z logami i instrukcją odtworzenia kroku.
 - **⚡ Architektura Single-File SPA**: Pełna funkcjonalność w pojedynczym pliku `index.html`, bez konieczności budowania czy instalowania bibliotek przez `npm`.
+
+### 💖 Sponsorship i Wsparcie
+> **Kod nie tworzy się sam (jeszcze!) – Masz ochotę na więcej narzędzi AI? Napędź kolejny projekt! 🚀**  
+> Jeśli ten projekt pomógł Ci w pracy lub testach, możesz wesprzeć rozwój oprogramowania open-source za pomocą donacji kryptowalutowej:
+
+- **Bitcoin (BTC):** `bc1pjgctwfj5csuffdt54cl663830e77d88a65agatx2csfffedwr73q7hegq9`
 
 ### 🛠️ Stos technologiczny
 - **Frontend:** HTML5, TailwindCSS 3.4 (JIT CDN), Vanilla JavaScript (ES6+).
