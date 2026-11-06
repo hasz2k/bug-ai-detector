@@ -921,6 +921,38 @@ renderStatic();
 renderFilters();
 renderAll();
 setLang(lang);
+// Połączenie z silnikiem detekcji AI przez WebSocket
+function initLiveStreamWebSocket() {
+  // W środowisku produkcyjnym/lokalnym wskazujemy adres serwera FastAPI
+  const wsUrl = "ws://localhost:8000/ws/stream";
+  const ws = new WebSocket(wsUrl);
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    // Aktualizacja wskaźnika FPS na żywo
+    const fpsElement = document.querySelector("#live-fps");
+    if (fpsElement) fpsElement.textContent = `FPS: ${data.fps}`;
+
+    // Renderowanie dynamicznych ramek detekcji AI
+    const overlay = document.querySelector("#live-overlay");
+    if (overlay && data.detections.length > 0) {
+      overlay.innerHTML = data.detections.map(det => `
+        <div class="absolute border-2 border-rose-500 bg-rose-500/20 rounded p-1 transition-all duration-75"
+             style="top:${det.bbox.top}; left:${det.bbox.left}; width:${det.bbox.width}; height:${det.bbox.height};">
+          <span class="bg-rose-600 text-[9px] font-bold px-1 rounded text-white">${det.label}</span>
+        </div>
+      `).join('');
+    }
+  };
+
+  ws.onerror = () => {
+    console.log("Tryb rozłączony: używam symulacji stacjonarnej demo.");
+  };
+}
+
+// Uruchomienie połączenia przy starcie aplikacji
+document.addEventListener("DOMContentLoaded", initLiveStreamWebSocket);
 </script>
 </body>
 </html>
