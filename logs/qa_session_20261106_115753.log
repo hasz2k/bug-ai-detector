@@ -1,0 +1,28 @@
+[2026-11-06 11:57:53] [INFO] Rozpoczęto autonomiczną sesję testową QA dla URL: http://localhost:8085
+[2026-11-06 11:57:58] [INFO] Ładowanie strony docelowej...
+[2026-11-06 11:58:00] [INFO] Strona załadowana pomyślnie.
+[2026-11-06 11:58:01] [INFO] Krok 1: Przewinięto widok do Y: 400
+[2026-11-06 11:58:04] [INFO] Krok 2: Oczekiwanie 1500 ms
+[2026-11-06 11:58:06] [INFO] Krok 3: Przewinięto widok do Y: 800
+[2026-11-06 11:58:12] [WARNING] Krok 4: Akcja 'click_random' nie powiodła się: Locator.click: Timeout 2000ms exceeded.
+Call log:
+  - waiting for locator("button, a").nth(24)
+    - locator resolved to <button data-target="Jira" data-action="export" class="btn bg-blue-600 hover:bg-blue-500">…</button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    3 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 500ms
+
+[2026-11-06 11:58:16] [INFO] Krok 5: Oczekiwanie 2000 ms
+[2026-11-06 11:58:17] [INFO] Sesja testowa zakończona.
+[2026-11-06 11:58:29] [INFO] Zapisano nagranie wideo sesji: /home/mizycki/Pulpit/Ai-detector/videos/qa_session_20261106_115753.webm
+[2026-11-06 11:58:31] [INFO] Zapisano dziennik logów: /home/mizycki/Pulpit/Ai-detector/logs/qa_session_20261106_115753.log
