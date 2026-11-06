@@ -11,11 +11,11 @@ if [ ! -d ".venv" ]; then
     python3 -m venv .venv --system-site-packages
     source .venv/bin/activate
     echo -e "${BLUE}📥 Instalowanie zależności wewnątrz venv...${NC}"
-    pip install uvicorn ultralytics mss
+    pip install fastapi uvicorn ultralytics mss websockets playwright
 else
     source .venv/bin/activate
     if ! command -v uvicorn &> /dev/null; then
-        pip install uvicorn ultralytics mss
+        pip install fastapi uvicorn ultralytics mss websockets playwright
     fi
 fi
 

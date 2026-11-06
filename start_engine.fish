@@ -11,12 +11,12 @@ if not test -d .venv
     python3 -m venv .venv --system-site-packages
     source .venv/bin/activate.fish
     echo -e "$BLUE📥 Instalowanie zależności wewnątrz venv...$NC"
-    pip install uvicorn ultralytics mss
+    pip install fastapi uvicorn ultralytics mss websockets playwright
 else
     source .venv/bin/activate.fish
     # Szybkie upewnienie się, że uvicorn jest zainstalowany w venv
     if not command -v uvicorn > /dev/null
-        pip install uvicorn ultralytics mss
+        pip install fastapi uvicorn ultralytics mss websockets playwright
     end
 end
 
