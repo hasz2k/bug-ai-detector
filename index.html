@@ -3,315 +3,741 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bug AI Detector — Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Bug AI Detector Engine — QA Dashboard</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
-  <!-- Dynamic Overlay Layer for AI Bounding Boxes -->
-  <div id="ai-overlay" class="fixed inset-0 pointer-events-none z-50"></div>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+  <div id="ai-overlay" class="fixed inset-0 pointer-events-none z-50" aria-hidden="true"></div>
+  <div id="toasts" class="fixed bottom-4 right-4 z-[60] space-y-2" role="status" aria-live="polite"></div>
 
-  <div class="max-w-7xl mx-auto px-6 py-8">
-    <!-- Header -->
-    <header class="flex justify-between items-center mb-8 border-b border-slate-800 pb-5">
+  <div class="max-w-[1600px] mx-auto px-6 py-6">
+    <header class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
       <div class="flex items-center space-x-3">
-        <span class="text-3xl">🤖</span>
+        <div class="bg-cyan-600/20 border border-cyan-500/30 p-2.5 rounded-xl text-cyan-400">
+          <i class="fa-solid fa-robot text-2xl" aria-hidden="true"></i>
+        </div>
         <div>
-          <h1 class="text-2xl font-bold tracking-wide text-white">Bug AI Detector Engine</h1>
-          <p class="text-xs text-slate-400">Live Screen Telemetry & Autonomous QA Agent</p>
+          <h1 class="text-xl font-bold tracking-wide text-white">Bug AI Detector Engine</h1>
+          <p class="text-xs text-slate-400" data-i18n="subtitle"></p>
         </div>
       </div>
 
       <div class="flex items-center space-x-4">
-        <div id="status-badge" class="flex items-center space-x-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-xs">
-          <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span>
-          <span id="status-text" class="text-slate-300 font-medium">Connecting...</span>
+        <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs font-semibold" role="group" aria-label="Language selector">
+          <button type="button" data-lang="pl" class="px-2.5 py-1 rounded transition-colors">PL</button>
+          <button type="button" data-lang="en" class="px-2.5 py-1 rounded transition-colors">EN</button>
         </div>
-        <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-mono">
+
+        <div class="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3.5 py-1.5 rounded-full text-xs" role="status">
+          <span id="status-dot" class="w-2.5 h-2.5 rounded-full"></span>
+          <span id="status-text" class="font-medium"></span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 px-3.5 py-1.5 rounded-full text-xs font-mono">
           FPS: <span id="fps-counter" class="text-cyan-400 font-bold">0.0</span>
         </div>
       </div>
     </header>
 
-    <!-- Main Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Left Panel: Actions & Control -->
-      <div class="space-y-6">
-        <!-- QA Agent Control -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
-          <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">Autonomous QA Agent</h2>
-          <div class="space-y-3">
-            <input type="text" id="target-url" value="http://localhost:8085" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500" placeholder="Target URL">
-            <button id="btn-run-agent" onclick="runAgent()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors">
-              🚀 Run Agent
-            </button>
+    <main>
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-rose-400 uppercase tracking-wider" data-i18n="kpiBlockers"></p>
+            <p class="text-2xl font-bold text-white mt-1">2 <span class="text-xs text-rose-500 font-normal" data-i18n="kpiBlockersSub"></span></p>
           </div>
-        </div>
+          <div class="bg-rose-500/10 p-3 rounded-lg text-rose-400 border border-rose-500/20">
+            <i class="fa-solid fa-triangle-exclamation text-lg" aria-hidden="true"></i>
+          </div>
+        </article>
 
-        <!-- Issue Export -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
-          <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">Export Issue</h2>
-          <div class="space-y-3">
-            <input type="text" id="issue-title" placeholder="Bug Title" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
-            <textarea id="issue-desc" placeholder="Bug Description" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"></textarea>
+        <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-purple-400 uppercase tracking-wider" data-i18n="kpiIssues"></p>
+            <p class="text-2xl font-bold text-white mt-1">4 <span class="text-xs text-purple-400 font-normal">(AI Conf ≥ 90%)</span></p>
+          </div>
+          <div class="bg-purple-500/10 p-3 rounded-lg text-purple-400 border border-purple-500/20">
+            <i class="fa-solid fa-bug text-lg" aria-hidden="true"></i>
+          </div>
+        </article>
 
-            <div class="flex space-x-3">
-              <button onclick="createIssue('jira')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-3 rounded-lg text-xs transition-colors">
-                Export to Jira
-              </button>
-              <button onclick="createIssue('redmine')" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-2 px-3 rounded-lg text-xs transition-colors">
-                Export to Redmine
+        <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-cyan-400 uppercase tracking-wider" data-i18n="kpiCoverage"></p>
+            <p class="text-2xl font-bold text-white mt-1">92%</p>
+          </div>
+          <div class="bg-cyan-500/10 p-3 rounded-lg text-cyan-400 border border-cyan-500/20">
+            <i class="fa-solid fa-chart-line text-lg" aria-hidden="true"></i>
+          </div>
+        </article>
+
+        <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-emerald-400 uppercase tracking-wider" data-i18n="kpiBots"></p>
+            <p class="text-2xl font-bold text-white mt-1">5 <span class="text-xs text-emerald-400 font-normal" data-i18n="kpiBotsSub"></span></p>
+          </div>
+          <div class="bg-emerald-500/10 p-3 rounded-lg text-emerald-400 border border-emerald-500/20">
+            <i class="fa-solid fa-robot text-lg" aria-hidden="true"></i>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="space-y-6">
+          <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <i class="fa-solid fa-play text-cyan-400" aria-hidden="true"></i>
+              <span data-i18n="agentLauncher"></span>
+            </h2>
+            <div class="space-y-3">
+              <input type="url" id="target-url" value="http://localhost:8085" data-i18n-placeholder="phTargetUrl"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+              <button type="button" id="btn-run-agent"
+                class="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg text-xs transition-colors flex items-center justify-center gap-2">
+                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                <span id="run-agent-label" data-i18n="btnRunAgent"></span>
               </button>
             </div>
+          </article>
+
+          <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <i class="fa-solid fa-share-nodes text-blue-400" aria-hidden="true"></i>
+              <span data-i18n="issueExporter"></span>
+            </h2>
+            <div class="space-y-3">
+              <input type="text" id="issue-title" data-i18n-placeholder="phTitle"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+              <textarea id="issue-desc" rows="2" data-i18n-placeholder="phDesc"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"></textarea>
+              <div class="flex space-x-2">
+                <button type="button" data-issue-system="jira"
+                  class="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium py-1.5 px-3 rounded-lg text-xs transition-colors">
+                  Jira Cloud
+                </button>
+                <button type="button" data-issue-system="redmine"
+                  class="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium py-1.5 px-3 rounded-lg text-xs transition-colors">
+                  Redmine
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <i class="fa-solid fa-file-export text-emerald-400" aria-hidden="true"></i>
+              <span data-i18n="executiveReports"></span>
+            </h2>
+            <button type="button" id="btn-export-reports"
+              class="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg text-xs transition-colors border border-slate-700 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+              <span data-i18n="btnGenerateReports"></span>
+            </button>
+            <div id="reports-output" class="mt-3 text-xs space-y-1"></div>
+          </article>
+        </div>
+
+        <article class="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col">
+          <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex justify-between items-center">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-eye text-cyan-400" aria-hidden="true"></i>
+              <span data-i18n="liveTelemetry"></span>
+            </span>
+            <span id="detections-count" class="text-xs bg-cyan-950 text-cyan-400 border border-cyan-800/60 px-2.5 py-0.5 rounded-full font-mono"></span>
+          </h2>
+
+          <div class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs overflow-y-auto max-h-[380px]">
+            <ul id="detections-list" class="space-y-2 text-slate-400">
+              <li class="italic text-slate-600" data-i18n="waitingStream"></li>
+            </ul>
           </div>
-        </div>
+        </article>
+      </section>
 
-        <!-- Report Download -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
-          <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">Executive Reports</h2>
-          <button onclick="exportReports()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-slate-600">
-            📊 Generate PDF & CSV Reports
-          </button>
-          <div id="reports-output" class="mt-3 text-xs space-y-1"></div>
-        </div>
-      </div>
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <article class="md:col-span-2 bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+          <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-chart-area text-purple-400" aria-hidden="true"></i>
+            <span data-i18n="trendTitle"></span>
+          </h2>
+          <div class="h-[220px]"><canvas id="trend-chart"></canvas></div>
+        </article>
 
-      <!-- Right Panel: Live Detections Feed -->
-      <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col">
-        <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4 flex justify-between items-center">
-          <span>Live Detection Telemetry</span>
-          <span id="detections-count" class="text-xs bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-mono">0 objects</span>
-        </h2>
-
-        <div class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-xs overflow-y-auto max-h-[450px]">
-          <ul id="detections-list" class="space-y-2 text-slate-400">
-            <li class="italic text-slate-600">Waiting for live detection stream...</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+        <article class="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+          <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-cyan-400" aria-hidden="true"></i>
+            <span data-i18n="categoryTitle"></span>
+          </h2>
+          <div class="h-[220px] flex items-center justify-center"><canvas id="category-chart"></canvas></div>
+        </article>
+      </section>
+    </main>
   </div>
 
   <script>
-    let lastDetections = [];
-    const overlay = document.getElementById('ai-overlay');
-    const detectionsList = document.getElementById('detections-list');
-    const detectionsCount = document.getElementById('detections-count');
-    const fpsCounter = document.getElementById('fps-counter');
-    const statusDot = document.getElementById('status-dot');
-    const statusText = document.getElementById('status-text');
+    (() => {
+      'use strict';
 
-    const isGitHubPages = window.location.hostname.includes('github.io');
-    const host = window.location.hostname || 'localhost';
-    const apiBase = `http://${host}:8000`;
-    const wsUrl = `ws://${host}:8000/ws/stream`;
+      const CONFIG = {
+        apiPort: 8000,
+        connectTimeoutMs: 2000,
+        reconnectBaseMs: 1000,
+        reconnectMaxMs: 15000,
+        demoIntervalMs: 1000,
+        demoAgentDelayMs: 1200,
+        toastDurationMs: 4000,
+        languageStorageKey: 'bugai.lang',
+        defaultLanguage: 'pl',
+      };
 
-    let socket = null;
-    let isDemoMode = false;
+      const forceDemo = location.hostname.toLowerCase().includes('github.io');
+      const host = location.hostname || 'localhost';
+      const secure = location.protocol === 'https:';
+      const API_BASE = `${secure ? 'https' : 'http'}://${host}:${CONFIG.apiPort}`;
+      const WS_URL = `${secure ? 'wss' : 'ws'}://${host}:${CONFIG.apiPort}/ws/stream`;
 
-    // Próba połączenia z prawdziwym serwerem WebSocket
-    try {
-      if (!isGitHubPages) {
-        socket = new WebSocket(wsUrl);
+      const translations = {
+        pl: {
+          subtitle: 'Autonomiczna Inspekcja Wizualna QA & Telemetria',
+          kpiBlockers: 'Krytyczne Blokery',
+          kpiBlockersSub: '(-1 vs poprzedni build)',
+          kpiIssues: 'Wykryte Usterki',
+          kpiCoverage: 'Pokrycie Scenariuszy',
+          kpiBots: 'Aktywne Boty AI',
+          kpiBotsSub: 'w puli',
+          agentLauncher: 'Uruchamianie Agenta QA',
+          phTargetUrl: 'Adres docelowy',
+          btnRunAgent: 'Uruchom Eksplorację Agenta',
+          btnRunningAgent: 'Eksploracja w toku...',
+          issueExporter: 'Eksport Zgłoszeń do Trackera',
+          phTitle: 'Tytuł / Podsumowanie błędu',
+          phDesc: 'Szczegóły odtworzenia i logi',
+          executiveReports: 'Raporty Wykonawcze',
+          btnGenerateReports: 'Generuj Raporty PDF & CSV',
+          liveTelemetry: 'Telemetria Vision AI na Żywo',
+          waitingStream: 'Oczekiwanie na strumień detekcji...',
+          noObjects: 'Brak wykrytych obiektów na ekranie',
+          objectsCount: 'obiektów',
+          trendTitle: 'Trend Wykrywania Błędów vs Wersja Buildu',
+          trendCritical: 'Blocker / Krytyczne',
+          trendMajor: 'Major / Minor',
+          categoryTitle: 'Klasyfikacja Wykrytych Usterek',
+          catVisual: 'Wizualne / Tekstury',
+          catLogic: 'Logika / Soft-lock',
+          catFps: 'Spadki FPS',
+          catOcr: 'Tekst OCR',
+          statusConnecting: 'Łączenie...',
+          statusLiveStream: 'Transmisja na żywo',
+          statusLiveDemo: 'Tryb Demo (Symulacja)',
+          fillTargetUrl: 'Podaj adres docelowy!',
+          fillTitleDesc: 'Wypełnij tytuł i opis zgłoszenia!',
+          issueCreated: 'Zgłoszenie utworzone',
+          agentTriggered: 'Agent uruchomiony',
+          agentError: 'Błąd uruchamiania agenta',
+          apiError: 'Błąd API',
+          reportsGenerated: 'Raporty wygenerowane:',
+          reportsGeneratedDemo: '[DEMO] Raporty wygenerowane (symulacja)',
+          downloadPdf: '📄 Pobierz PDF',
+          downloadCsv: '📊 Pobierz CSV',
+        },
+        en: {
+          subtitle: 'Autonomous QA Visual Inspection & Telemetry Analytics',
+          kpiBlockers: 'Critical Blockers',
+          kpiBlockersSub: '(-1 vs prev build)',
+          kpiIssues: 'Detected Issues',
+          kpiCoverage: 'Scenario Coverage',
+          kpiBots: 'Active AI Bots',
+          kpiBotsSub: 'in pool',
+          agentLauncher: 'Autonomous QA Agent Launcher',
+          phTargetUrl: 'Target URL',
+          btnRunAgent: 'Run Agent Exploration',
+          btnRunningAgent: 'Exploration running...',
+          issueExporter: 'Export Issue to Tracker',
+          phTitle: 'Bug Summary / Title',
+          phDesc: 'Reproduction details & logs',
+          executiveReports: 'Executive Reports',
+          btnGenerateReports: 'Generate PDF & CSV Reports',
+          liveTelemetry: 'Live AI Vision Telemetry Stream',
+          waitingStream: 'Waiting for live detection stream...',
+          noObjects: 'No objects detected on screen',
+          objectsCount: 'objects',
+          trendTitle: 'Bug Detection Trend vs Build Version',
+          trendCritical: 'Blocker / Critical',
+          trendMajor: 'Major / Minor',
+          categoryTitle: 'Issue Classification Breakdown',
+          catVisual: 'Visual/Texture',
+          catLogic: 'Logic/Soft-lock',
+          catFps: 'FPS Drops',
+          catOcr: 'OCR Text',
+          statusConnecting: 'Connecting...',
+          statusLiveStream: 'Live Streaming',
+          statusLiveDemo: 'Live Demo (Simulated)',
+          fillTargetUrl: 'Please enter a target URL!',
+          fillTitleDesc: 'Please fill in title and description!',
+          issueCreated: 'Issue created',
+          agentTriggered: 'Agent triggered',
+          agentError: 'Agent launch error',
+          apiError: 'API error',
+          reportsGenerated: 'Reports generated:',
+          reportsGeneratedDemo: '[DEMO] Reports generated (simulated)',
+          downloadPdf: '📄 Download PDF',
+          downloadCsv: '📊 Download CSV',
+        },
+      };
 
-        socket.onopen = () => {
-          setConnectedStatus('Live Streaming', 'bg-emerald-500', 'text-emerald-400');
-        };
+      const STATUS = {
+        connecting: { key: 'statusConnecting', dot: 'bg-yellow-500 animate-pulse', text: 'text-slate-300' },
+        live: { key: 'statusLiveStream', dot: 'bg-emerald-500', text: 'text-emerald-400' },
+        demo: { key: 'statusLiveDemo', dot: 'bg-cyan-500 animate-pulse', text: 'text-cyan-400' },
+      };
 
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            updateUI(data.fps, data.detections);
-          } catch (err) {
-            console.error("Payload error:", err);
-          }
-        };
+      const TOAST_STYLES = {
+        success: 'border-emerald-500/40 text-emerald-300',
+        error: 'border-rose-500/40 text-rose-300',
+        info: 'border-cyan-500/40 text-cyan-300',
+      };
 
-        socket.onclose = () => {
-          enableDemoMode();
-        };
+      const LANG_ACTIVE = ['bg-cyan-600', 'text-white', 'font-bold'];
+      const LANG_INACTIVE = ['text-slate-400', 'hover:text-white'];
 
-        socket.onerror = () => {
-          enableDemoMode();
-        };
-      } else {
-        enableDemoMode();
+      const MOCK_TREND = {
+        builds: ['Build #1080', 'Build #1081', 'Build #1082', 'Build #1083', 'Build #1084'],
+        critical: [4, 3, 2, 2, 1],
+        major: [8, 6, 9, 7, 4],
+      };
+      const MOCK_CATEGORIES = {
+        keys: ['catVisual', 'catLogic', 'catFps', 'catOcr'],
+        values: [40, 25, 20, 15],
+        colors: ['#06b6d4', '#f43f5e', '#eab308', '#a855f7'],
+      };
+      const DEMO_LABELS = ['button', 'input_field', 'warning_toast', 'modal_overlay'];
+
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        overlay: $('ai-overlay'),
+        toasts: $('toasts'),
+        list: $('detections-list'),
+        count: $('detections-count'),
+        fps: $('fps-counter'),
+        statusDot: $('status-dot'),
+        statusText: $('status-text'),
+        targetUrl: $('target-url'),
+        runAgentBtn: $('btn-run-agent'),
+        runAgentLabel: $('run-agent-label'),
+        issueTitle: $('issue-title'),
+        issueDesc: $('issue-desc'),
+        exportBtn: $('btn-export-reports'),
+        reportsOutput: $('reports-output'),
+      };
+
+      const state = {
+        lang: CONFIG.defaultLanguage,
+        status: 'connecting',
+        demo: false,
+        hasFrame: false,
+        fps: 0,
+        detections: [],
+      };
+
+      const connection = { socket: null, attempts: 0, reconnectTimer: null, demoTimer: null };
+      const charts = { trend: null, category: null };
+      let renderQueued = false;
+
+      const t = (key) => translations[state.lang][key] ?? key;
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+      function i18nNode(tag, key, className = '') {
+        const node = document.createElement(tag);
+        node.className = className;
+        node.dataset.i18n = key;
+        node.textContent = t(key);
+        return node;
       }
-    } catch (e) {
-      enableDemoMode();
-    }
 
-    function setConnectedStatus(text, dotClass, textClass) {
-      statusDot.className = `w-2.5 h-2.5 rounded-full ${dotClass}`;
-      statusText.innerText = text;
-      statusText.className = `${textClass} font-medium`;
-    }
+      function setLabel(node, key) {
+        node.dataset.i18n = key;
+        node.textContent = t(key);
+      }
 
-    // --- TRYB DEMO DLA GITHUB PAGES ---
-    function enableDemoMode() {
-      if (isDemoMode) return;
-      isDemoMode = true;
-      setConnectedStatus('Live Demo (Simulated)', 'bg-cyan-500 animate-pulse', 'text-cyan-400');
+      function toast(message, type = 'info') {
+        const node = document.createElement('div');
+        node.className = `bg-slate-900 border rounded-lg px-4 py-2 text-xs shadow-lg max-w-sm ${TOAST_STYLES[type]}`;
+        node.textContent = message;
+        els.toasts.appendChild(node);
+        setTimeout(() => node.remove(), CONFIG.toastDurationMs);
+      }
 
-      setInterval(() => {
-        const simulatedFps = (55 + Math.random() * 5).toFixed(1);
-        const sampleLabels = ['button', 'input_field', 'modal_window', 'icon', 'warning_toast'];
+      function renderStatus() {
+        const status = STATUS[state.status];
+        els.statusDot.className = `w-2.5 h-2.5 rounded-full ${status.dot}`;
+        els.statusText.className = `${status.text} font-medium`;
+        els.statusText.textContent = t(status.key);
+      }
 
-        const count = Math.floor(Math.random() * 3) + 1;
-        const simulatedDetections = [];
+      function setStatus(name) {
+        state.status = name;
+        renderStatus();
+      }
 
-        for (let i = 0; i < count; i++) {
-          const label = sampleLabels[Math.floor(Math.random() * sampleLabels.length)];
-          const conf = (0.75 + Math.random() * 0.23).toFixed(2);
-          simulatedDetections.push({
-            label: `${label} (${Math.round(conf * 100)}%)`,
-            confidence: parseFloat(conf),
+      function applyTranslations() {
+        const dict = translations[state.lang];
+        document.documentElement.lang = state.lang;
+
+        document.querySelectorAll('[data-i18n]').forEach((node) => {
+          node.textContent = dict[node.dataset.i18n] ?? node.dataset.i18n;
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
+          const text = dict[node.dataset.i18nPlaceholder];
+          node.placeholder = text;
+          node.setAttribute('aria-label', text);
+        });
+        document.querySelectorAll('[data-lang]').forEach((button) => {
+          const active = button.dataset.lang === state.lang;
+          button.classList.remove(...(active ? LANG_INACTIVE : LANG_ACTIVE));
+          button.classList.add(...(active ? LANG_ACTIVE : LANG_INACTIVE));
+          button.setAttribute('aria-pressed', String(active));
+        });
+
+        renderStatus();
+        renderList();
+        updateChartsLanguage();
+      }
+
+      function setLanguage(lang) {
+        if (!translations[lang]) return;
+        state.lang = lang;
+        try { localStorage.setItem(CONFIG.languageStorageKey, lang); } catch (err) { /* storage niedostępny */ }
+        applyTranslations();
+      }
+
+      function loadLanguage() {
+        try {
+          const saved = localStorage.getItem(CONFIG.languageStorageKey);
+          if (saved && translations[saved]) state.lang = saved;
+        } catch (err) { /* storage niedostępny */ }
+      }
+
+      function pushFrame(fps, detections) {
+        state.fps = Number(fps) || 0;
+        state.detections = Array.isArray(detections) ? detections.filter((det) => det && det.bbox) : [];
+        state.hasFrame = true;
+        if (renderQueued) return;
+        renderQueued = true;
+        requestAnimationFrame(() => {
+          renderQueued = false;
+          els.fps.textContent = state.fps.toFixed(1);
+          renderOverlay();
+          renderList();
+        });
+      }
+
+      function renderOverlay() {
+        const boxes = state.detections.map(({ label, bbox }) => {
+          const box = document.createElement('div');
+          box.className = 'absolute border-2 border-cyan-400 bg-cyan-500/10 text-cyan-300 font-mono text-[10px] px-1 rounded shadow-sm';
+          Object.assign(box.style, { top: bbox.top, left: bbox.left, width: bbox.width, height: bbox.height });
+
+          const tag = document.createElement('span');
+          tag.className = 'bg-slate-950/90 border border-cyan-500/50 px-1 py-0.5 rounded -mt-5 inline-block';
+          tag.textContent = label;
+          box.appendChild(tag);
+          return box;
+        });
+        els.overlay.replaceChildren(...boxes);
+      }
+
+      function detectionItem({ label, bbox }) {
+        const item = document.createElement('li');
+        item.className = 'flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800';
+
+        const name = document.createElement('span');
+        name.className = 'text-cyan-300 font-semibold';
+        name.textContent = label;
+
+        const coords = document.createElement('span');
+        coords.className = 'text-slate-500 text-[11px]';
+        coords.textContent = `T:${bbox.top} L:${bbox.left} W:${bbox.width} H:${bbox.height}`;
+
+        item.append(name, coords);
+        return item;
+      }
+
+      function renderList() {
+        els.count.textContent = `${state.detections.length} ${t('objectsCount')}`;
+        if (!state.hasFrame) return;
+
+        if (state.detections.length === 0) {
+          const empty = i18nNode('li', 'noObjects', 'italic text-slate-600');
+          els.list.replaceChildren(empty);
+          return;
+        }
+        els.list.replaceChildren(...state.detections.map(detectionItem));
+      }
+
+      function generateDemoFrame() {
+        const detections = Array.from({ length: randomInt(1, 3) }, () => {
+          const confidence = Number((0.8 + Math.random() * 0.18).toFixed(2));
+          const label = DEMO_LABELS[randomInt(0, DEMO_LABELS.length - 1)];
+          return {
+            label: `${label} (${Math.round(confidence * 100)}%)`,
+            confidence,
             bbox: {
-              top: `${Math.floor(20 + Math.random() * 50)}%`,
-              left: `${Math.floor(25 + Math.random() * 50)}%`,
-              width: `${Math.floor(10 + Math.random() * 15)}%`,
-              height: `${Math.floor(5 + Math.random() * 10)}%`
-            }
-          });
+              top: `${randomInt(25, 64)}%`,
+              left: `${randomInt(30, 69)}%`,
+              width: `${randomInt(12, 23)}%`,
+              height: `${randomInt(6, 13)}%`,
+            },
+          };
+        });
+        return { fps: 56 + Math.random() * 4, detections };
+      }
+
+      function startDemo() {
+        if (connection.demoTimer) return;
+        state.demo = true;
+        setStatus('demo');
+        connection.demoTimer = setInterval(() => {
+          const frame = generateDemoFrame();
+          pushFrame(frame.fps, frame.detections);
+        }, CONFIG.demoIntervalMs);
+      }
+
+      function stopDemo() {
+        clearInterval(connection.demoTimer);
+        connection.demoTimer = null;
+        state.demo = false;
+      }
+
+      function handleMessage(event) {
+        try {
+          const { fps, detections } = JSON.parse(event.data);
+          pushFrame(fps, detections);
+        } catch (err) {
+          console.warn('Niepoprawna ramka ze strumienia:', err);
+        }
+      }
+
+      function scheduleReconnect() {
+        const delay = Math.min(CONFIG.reconnectBaseMs * 2 ** connection.attempts, CONFIG.reconnectMaxMs);
+        connection.attempts += 1;
+        clearTimeout(connection.reconnectTimer);
+        connection.reconnectTimer = setTimeout(connect, delay);
+      }
+
+      function handleDisconnect() {
+        startDemo();
+        scheduleReconnect();
+      }
+
+      function connect() {
+        if (forceDemo) {
+          startDemo();
+          return;
         }
 
-        updateUI(simulatedFps, simulatedDetections);
-      }, 1000);
-    }
+        let socket;
+        try {
+          socket = new WebSocket(WS_URL);
+        } catch (err) {
+          handleDisconnect();
+          return;
+        }
+        connection.socket = socket;
 
-    function updateUI(fps, detections) {
-      fpsCounter.innerText = fps || '60.0';
-      lastDetections = detections || [];
-      renderOverlay(lastDetections);
-      renderList(lastDetections);
-    }
+        const timeout = setTimeout(() => socket.close(), CONFIG.connectTimeoutMs);
+        socket.onopen = () => {
+          clearTimeout(timeout);
+          connection.attempts = 0;
+          stopDemo();
+          setStatus('live');
+        };
+        socket.onmessage = handleMessage;
+        socket.onclose = () => {
+          clearTimeout(timeout);
+          handleDisconnect();
+        };
+      }
 
-    function renderOverlay(detections) {
-      overlay.innerHTML = '';
-      detections.forEach(det => {
-        const box = det.bbox;
-        const el = document.createElement('div');
-        el.className = 'absolute border-2 border-cyan-400 bg-cyan-500/10 text-cyan-300 font-mono text-[10px] px-1 rounded shadow-sm transition-all duration-300';
-        el.style.top = box.top;
-        el.style.left = box.left;
-        el.style.width = box.width;
-        el.style.height = box.height;
-        el.innerHTML = `<span class="bg-slate-900/90 border border-cyan-500/50 px-1 py-0.5 rounded -mt-5 inline-block">${det.label}</span>`;
-        overlay.appendChild(el);
+      function extractError(data) {
+        const detail = data?.detail ?? data?.message;
+        if (Array.isArray(detail)) return detail.map((item) => item.msg ?? JSON.stringify(item)).join('; ');
+        return typeof detail === 'string' ? detail : null;
+      }
+
+      async function apiRequest(path, options) {
+        const response = await fetch(`${API_BASE}${path}`, options);
+        let data = null;
+        try { data = await response.json(); } catch (err) { /* brak treści JSON */ }
+        if (!response.ok) throw new Error(extractError(data) || `HTTP ${response.status}`);
+        return data ?? {};
+      }
+
+      const postJson = (path, body) => apiRequest(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-    }
 
-    function renderList(detections) {
-      detectionsCount.innerText = `${detections.length} objects`;
-      if (detections.length === 0) {
-        detectionsList.innerHTML = '<li class="italic text-slate-600">No objects detected on screen</li>';
-        return;
-      }
-
-      detectionsList.innerHTML = detections.map(det => `
-        <li class="flex justify-between items-center bg-slate-800/60 p-2 rounded border border-slate-700/50">
-          <span class="text-cyan-300 font-semibold">${det.label}</span>
-          <span class="text-slate-500 text-[11px]">T:${det.bbox.top} L:${det.bbox.left} W:${det.bbox.width} H:${det.bbox.height}</span>
-        </li>
-      `).join('');
-    }
-
-    async function runAgent() {
-      const targetUrl = document.getElementById('target-url').value;
-      const btn = document.getElementById('btn-run-agent');
-      btn.disabled = true;
-      btn.innerText = '⏳ Agent running...';
-
-      if (isDemoMode) {
-        setTimeout(() => {
-          alert(`[DEMO MODE] Agent Playwright pomyślnie wykonał nawigację po URL: ${targetUrl}`);
-          btn.disabled = false;
-          btn.innerText = '🚀 Run Agent';
-        }, 1500);
-        return;
-      }
-
-      try {
-        const res = await fetch(`${apiBase}/api/run-agent?target_url=` + encodeURIComponent(targetUrl), { method: 'POST' });
-        const data = await res.json();
-        alert(data.message || 'Agent triggered');
-      } catch (err) {
-        alert('Błąd uruchamiania agenta: ' + err);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = '🚀 Run Agent';
-      }
-    }
-
-    async function createIssue(system) {
-      const title = document.getElementById('issue-title').value;
-      const description = document.getElementById('issue-desc').value;
-
-      if (!title || !description) {
-        alert('Wypełnij tytuł i opis zgłoszenia!');
-        return;
-      }
-
-      if (isDemoMode) {
-        alert(`[DEMO MODE] Utworzono zgłoszenie w systemie ${system.toUpperCase()}: "${title}"`);
-        return;
-      }
-
-      try {
-        const res = await fetch(`${apiBase}/api/create-issue`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, description, system })
-        });
-        const data = await res.json();
-        if (res.ok && data.status === 'success') {
-          alert(`Zgłoszenie utworzone pomyślnie! (${data.issue_key || data.issue_id})`);
-        } else {
-          alert('Błąd: ' + (data.detail || data.message));
+      async function withBusy(button, task) {
+        button.disabled = true;
+        try {
+          return await task();
+        } finally {
+          button.disabled = false;
         }
-      } catch (err) {
-        alert('Błąd wywołania API: ' + err);
-      }
-    }
-
-    async function exportReports() {
-      const sessionId = 'session_' + Date.now();
-      const output = document.getElementById('reports-output');
-
-      if (isDemoMode) {
-        output.innerHTML = `
-          <div class="text-emerald-400">[DEMO] Wygenerowano przykładowe raporty:</div>
-          <span class="block text-cyan-400 cursor-pointer hover:underline" onclick="alert('Pobieranie pliku PDF (Demo)')">📄 Pobierz PDF (report_${sessionId}.pdf)</span>
-          <span class="block text-cyan-400 cursor-pointer hover:underline" onclick="alert('Pobieranie pliku CSV (Demo)')">📊 Pobierz CSV (report_${sessionId}.csv)</span>
-        `;
-        return;
       }
 
-      const targetUrl = document.getElementById('target-url').value;
+      async function runAgent() {
+        const targetUrl = els.targetUrl.value.trim();
+        if (!targetUrl) return toast(t('fillTargetUrl'), 'error');
 
-      try {
-        const res = await fetch(`${apiBase}/api/export-report`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            session_id: sessionId,
-            target_url: targetUrl,
-            detections: lastDetections
-          })
+        setLabel(els.runAgentLabel, 'btnRunningAgent');
+        await withBusy(els.runAgentBtn, async () => {
+          try {
+            if (state.demo) {
+              await sleep(CONFIG.demoAgentDelayMs);
+              toast(`[DEMO] Agent Playwright → ${targetUrl}`, 'info');
+            } else {
+              const data = await apiRequest(`/api/run-agent?target_url=${encodeURIComponent(targetUrl)}`, { method: 'POST' });
+              toast(data.message || t('agentTriggered'), 'success');
+            }
+          } catch (err) {
+            toast(`${t('agentError')}: ${err.message}`, 'error');
+          } finally {
+            setLabel(els.runAgentLabel, 'btnRunAgent');
+          }
         });
-        const data = await res.json();
-        if (res.ok && data.status === 'success') {
-          output.innerHTML = `
-            <div class="text-emerald-400">Wygenerowano raporty:</div>
-            <a href="${apiBase}${data.reports.pdf}" target="_blank" class="block text-cyan-400 hover:underline">📄 Pobierz PDF</a>
-            <a href="${apiBase}${data.reports.csv}" target="_blank" class="block text-cyan-400 hover:underline">📊 Pobierz CSV</a>
-          `;
-        } else {
-          alert('Błąd generowania raportów: ' + data.detail);
-        }
-      } catch (err) {
-        alert('Błąd API: ' + err);
       }
-    }
+
+      async function createIssue(system, button) {
+        const title = els.issueTitle.value.trim();
+        const description = els.issueDesc.value.trim();
+        if (!title || !description) return toast(t('fillTitleDesc'), 'error');
+
+        await withBusy(button, async () => {
+          if (state.demo) {
+            toast(`[DEMO] Ticket → ${system.toUpperCase()}: "${title}"`, 'info');
+            return;
+          }
+          try {
+            const data = await postJson('/api/create-issue', { title, description, system });
+            toast(`${t('issueCreated')} (${data.issue_key ?? data.issue_id})`, 'success');
+          } catch (err) {
+            toast(`${t('apiError')}: ${err.message}`, 'error');
+          }
+        });
+      }
+
+      function renderReportLinks(reports) {
+        const links = [
+          { href: reports.pdf, key: 'downloadPdf' },
+          { href: reports.csv, key: 'downloadCsv' },
+        ].map(({ href, key }) => {
+          const link = i18nNode('a', key, 'block text-cyan-400 hover:underline');
+          link.href = `${API_BASE}${href}`;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          return link;
+        });
+        els.reportsOutput.replaceChildren(i18nNode('div', 'reportsGenerated', 'text-emerald-400'), ...links);
+      }
+
+      async function exportReports() {
+        await withBusy(els.exportBtn, async () => {
+          if (state.demo) {
+            els.reportsOutput.replaceChildren(i18nNode('div', 'reportsGeneratedDemo', 'text-emerald-400'));
+            return;
+          }
+          try {
+            const data = await postJson('/api/export-report', {
+              session_id: `session_${Date.now()}`,
+              target_url: els.targetUrl.value.trim(),
+              detections: state.detections,
+            });
+            renderReportLinks(data.reports);
+          } catch (err) {
+            toast(`${t('apiError')}: ${err.message}`, 'error');
+          }
+        });
+      }
+
+      function chartOptions(extra = {}) {
+        return { responsive: true, maintainAspectRatio: false, ...extra };
+      }
+
+      function initCharts() {
+        if (typeof Chart === 'undefined') {
+          console.warn('Chart.js nie został załadowany – wykresy pominięte.');
+          return;
+        }
+
+        if (charts.trend) charts.trend.destroy();
+        if (charts.category) charts.category.destroy();
+
+        const gridColor = 'rgba(51, 65, 85, 0.3)';
+        const axis = { grid: { color: gridColor }, ticks: { color: '#64748b', font: { size: 10 } } };
+
+        charts.trend = new Chart($('trend-chart').getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: MOCK_TREND.builds,
+            datasets: [
+              { data: MOCK_TREND.critical, borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', tension: 0.3, fill: true },
+              { data: MOCK_TREND.major, borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', tension: 0.3, fill: true },
+            ],
+          },
+          options: chartOptions({
+            plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+            scales: { x: axis, y: axis },
+          }),
+        });
+
+        charts.category = new Chart($('category-chart').getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            datasets: [{ data: MOCK_CATEGORIES.values, backgroundColor: MOCK_CATEGORIES.colors, borderWidth: 0 }],
+          },
+          options: chartOptions({
+            plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } },
+          }),
+        });
+      }
+
+      function updateChartsLanguage() {
+        if (charts.trend) {
+          charts.trend.data.datasets[0].label = t('trendCritical');
+          charts.trend.data.datasets[1].label = t('trendMajor');
+          charts.trend.update();
+        }
+        if (charts.category) {
+          charts.category.data.labels = MOCK_CATEGORIES.keys.map(t);
+          charts.category.update();
+        }
+      }
+
+      function bindEvents() {
+        document.querySelectorAll('[data-lang]').forEach((button) => {
+          button.addEventListener('click', () => setLanguage(button.dataset.lang));
+        });
+        document.querySelectorAll('[data-issue-system]').forEach((button) => {
+          button.addEventListener('click', () => createIssue(button.dataset.issueSystem, button));
+        });
+        els.runAgentBtn.addEventListener('click', runAgent);
+        els.exportBtn.addEventListener('click', exportReports);
+      }
+
+      function init() {
+        loadLanguage();
+        initCharts();
+        applyTranslations();
+        bindEvents();
+        connect();
+      }
+
+      init();
+    })();
   </script>
 </body>
 </html>
