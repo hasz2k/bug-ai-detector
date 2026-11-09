@@ -1,0 +1,11 @@
+[2026-11-09 11:47:34] [INFO] Rozpoczęto autonomiczną sesję testową QA dla URL: http://localhost:8085
+[2026-11-09 11:47:35] [INFO] Ładowanie strony docelowej...
+[2026-11-09 11:47:35] [INFO] Strona załadowana pomyślnie.
+[2026-11-09 11:47:35] [INFO] Krok 1: Przewinięto widok do Y: 400
+[2026-11-09 11:47:38] [INFO] Krok 2: Oczekiwanie 1500 ms
+[2026-11-09 11:47:39] [INFO] Krok 3: Przewinięto widok do Y: 800
+[2026-11-09 11:47:40] [INFO] Krok 4: Wykonano kliknięcie w losowy element interfejsu.
+[2026-11-09 11:47:43] [INFO] Krok 5: Oczekiwanie 2000 ms
+[2026-11-09 11:47:44] [INFO] Sesja testowa zakończona.
+[2026-11-09 11:47:44] [INFO] Zapisano nagranie wideo sesji: /home/mizycki/Pulpit/Ai-detector/videos/qa_session_20261109_114734.webm
+[2026-11-09 11:47:44] [INFO] Zapisano dziennik logów: /home/mizycki/Pulpit/Ai-detector/logs/qa_session_20261109_114734.log

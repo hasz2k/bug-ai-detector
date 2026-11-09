@@ -1,0 +1,28 @@
+[2026-11-09 11:17:40] [INFO] Rozpoczęto autonomiczną sesję testową QA dla URL: http://localhost:8085
+[2026-11-09 11:17:41] [INFO] Ładowanie strony docelowej...
+[2026-11-09 11:17:42] [INFO] Strona załadowana pomyślnie.
+[2026-11-09 11:17:42] [INFO] Krok 1: Przewinięto widok do Y: 400
+[2026-11-09 11:17:45] [INFO] Krok 2: Oczekiwanie 1500 ms
+[2026-11-09 11:17:47] [INFO] Krok 3: Przewinięto widok do Y: 800
+[2026-11-09 11:17:50] [WARNING] Krok 4: Akcja 'click_random' nie powiodła się: Locator.click: Timeout 2000ms exceeded.
+Call log:
+  - waiting for locator("button, a").nth(26)
+    - locator resolved to <button aria-label="Zamknij" data-action="close-modal" data-modal-id="newTestModal" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-800">…</button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is not visible
+    - retrying click action
+      - waiting 100ms
+    - waiting for element to be visible, enabled and stable
+    - element is not visible
+  - retrying click action
+    - waiting 500ms
+
+[2026-11-09 11:17:54] [INFO] Krok 5: Oczekiwanie 2000 ms
+[2026-11-09 11:17:55] [INFO] Sesja testowa zakończona.
+[2026-11-09 11:17:59] [INFO] Zapisano nagranie wideo sesji: /home/mizycki/Pulpit/Ai-detector/videos/qa_session_20261109_111740.webm
+[2026-11-09 11:18:00] [INFO] Zapisano dziennik logów: /home/mizycki/Pulpit/Ai-detector/logs/qa_session_20261109_111740.log

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+ultralytics
+mss
+opencv-python
+websockets
+playwright
+requests
+python-dotenv
+reportlab
