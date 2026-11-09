@@ -84,7 +84,7 @@
 
         <div class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-xs overflow-y-auto max-h-[450px]">
           <ul id="detections-list" class="space-y-2 text-slate-400">
-            <li class="italic text-slate-600">Waiting for live WebSocket detection stream...</li>
+            <li class="italic text-slate-600">Waiting for live detection stream...</li>
           </ul>
         </div>
       </div>
@@ -100,47 +100,97 @@
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
 
-    // Jeśli strona działa na GitHub Pages (hasz2k.github.io), podłączamy się do lokalnego backendu
     const isGitHubPages = window.location.hostname.includes('github.io');
-    const host = isGitHubPages ? 'localhost' : (window.location.hostname || 'localhost');
-
-    // Zawsze wymuszamy http/ws dla lokalnego silnika FastAPI na porcie 8000
+    const host = window.location.hostname || 'localhost';
     const apiBase = `http://${host}:8000`;
     const wsUrl = `ws://${host}:8000/ws/stream`;
 
-    const socket = new WebSocket(wsUrl);
+    let socket = null;
+    let isDemoMode = false;
 
-    socket.onopen = () => {
-      statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
-      statusText.innerText = 'Live Streaming';
-      statusText.className = 'text-emerald-400 font-medium';
-    };
+    // Próba połączenia z prawdziwym serwerem WebSocket
+    try {
+      if (!isGitHubPages) {
+        socket = new WebSocket(wsUrl);
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        fpsCounter.innerText = data.fps || '0.0';
-        lastDetections = data.detections || [];
+        socket.onopen = () => {
+          setConnectedStatus('Live Streaming', 'bg-emerald-500', 'text-emerald-400');
+        };
 
-        renderOverlay(lastDetections);
-        renderList(lastDetections);
-      } catch (err) {
-        console.error("Payload error:", err);
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            updateUI(data.fps, data.detections);
+          } catch (err) {
+            console.error("Payload error:", err);
+          }
+        };
+
+        socket.onclose = () => {
+          enableDemoMode();
+        };
+
+        socket.onerror = () => {
+          enableDemoMode();
+        };
+      } else {
+        enableDemoMode();
       }
-    };
+    } catch (e) {
+      enableDemoMode();
+    }
 
-    socket.onclose = () => {
-      statusDot.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-      statusText.innerText = 'Disconnected';
-      statusText.className = 'text-red-400 font-medium';
-    };
+    function setConnectedStatus(text, dotClass, textClass) {
+      statusDot.className = `w-2.5 h-2.5 rounded-full ${dotClass}`;
+      statusText.innerText = text;
+      statusText.className = `${textClass} font-medium`;
+    }
+
+    // --- TRYB DEMO DLA GITHUB PAGES ---
+    function enableDemoMode() {
+      if (isDemoMode) return;
+      isDemoMode = true;
+      setConnectedStatus('Live Demo (Simulated)', 'bg-cyan-500 animate-pulse', 'text-cyan-400');
+
+      setInterval(() => {
+        const simulatedFps = (55 + Math.random() * 5).toFixed(1);
+        const sampleLabels = ['button', 'input_field', 'modal_window', 'icon', 'warning_toast'];
+
+        const count = Math.floor(Math.random() * 3) + 1;
+        const simulatedDetections = [];
+
+        for (let i = 0; i < count; i++) {
+          const label = sampleLabels[Math.floor(Math.random() * sampleLabels.length)];
+          const conf = (0.75 + Math.random() * 0.23).toFixed(2);
+          simulatedDetections.push({
+            label: `${label} (${Math.round(conf * 100)}%)`,
+            confidence: parseFloat(conf),
+            bbox: {
+              top: `${Math.floor(20 + Math.random() * 50)}%`,
+              left: `${Math.floor(25 + Math.random() * 50)}%`,
+              width: `${Math.floor(10 + Math.random() * 15)}%`,
+              height: `${Math.floor(5 + Math.random() * 10)}%`
+            }
+          });
+        }
+
+        updateUI(simulatedFps, simulatedDetections);
+      }, 1000);
+    }
+
+    function updateUI(fps, detections) {
+      fpsCounter.innerText = fps || '60.0';
+      lastDetections = detections || [];
+      renderOverlay(lastDetections);
+      renderList(lastDetections);
+    }
 
     function renderOverlay(detections) {
       overlay.innerHTML = '';
       detections.forEach(det => {
         const box = det.bbox;
         const el = document.createElement('div');
-        el.className = 'absolute border-2 border-cyan-400 bg-cyan-500/10 text-cyan-300 font-mono text-[10px] px-1 rounded shadow-sm transition-all duration-75';
+        el.className = 'absolute border-2 border-cyan-400 bg-cyan-500/10 text-cyan-300 font-mono text-[10px] px-1 rounded shadow-sm transition-all duration-300';
         el.style.top = box.top;
         el.style.left = box.left;
         el.style.width = box.width;
@@ -171,6 +221,15 @@
       btn.disabled = true;
       btn.innerText = '⏳ Agent running...';
 
+      if (isDemoMode) {
+        setTimeout(() => {
+          alert(`[DEMO MODE] Agent Playwright pomyślnie wykonał nawigację po URL: ${targetUrl}`);
+          btn.disabled = false;
+          btn.innerText = '🚀 Run Agent';
+        }, 1500);
+        return;
+      }
+
       try {
         const res = await fetch(`${apiBase}/api/run-agent?target_url=` + encodeURIComponent(targetUrl), { method: 'POST' });
         const data = await res.json();
@@ -189,6 +248,11 @@
 
       if (!title || !description) {
         alert('Wypełnij tytuł i opis zgłoszenia!');
+        return;
+      }
+
+      if (isDemoMode) {
+        alert(`[DEMO MODE] Utworzono zgłoszenie w systemie ${system.toUpperCase()}: "${title}"`);
         return;
       }
 
@@ -211,8 +275,18 @@
 
     async function exportReports() {
       const sessionId = 'session_' + Date.now();
-      const targetUrl = document.getElementById('target-url').value;
       const output = document.getElementById('reports-output');
+
+      if (isDemoMode) {
+        output.innerHTML = `
+          <div class="text-emerald-400">[DEMO] Wygenerowano przykładowe raporty:</div>
+          <span class="block text-cyan-400 cursor-pointer hover:underline" onclick="alert('Pobieranie pliku PDF (Demo)')">📄 Pobierz PDF (report_${sessionId}.pdf)</span>
+          <span class="block text-cyan-400 cursor-pointer hover:underline" onclick="alert('Pobieranie pliku CSV (Demo)')">📊 Pobierz CSV (report_${sessionId}.csv)</span>
+        `;
+        return;
+      }
+
+      const targetUrl = document.getElementById('target-url').value;
 
       try {
         const res = await fetch(`${apiBase}/api/export-report`, {
