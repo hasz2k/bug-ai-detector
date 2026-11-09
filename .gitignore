@@ -1,23 +1,82 @@
-# macOS System Files
+# ==========================================
+# Byte-compiled / optimized / DLL files
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# CachyOS / Linux OS Specific Files
+# ==========================================
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows System Files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# IDE & Editor Files
-.vscode/
-.idea/
+.directory
+*~
 *.swp
 *.swo
+Thumbs.db
+desktop.ini
 
-# Node.js / Local dependencies (if added later)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# ==========================================
+# Virtual Environments
+# ==========================================
+.venv/
+venv/
+ENV/
+env/
+venv.bak/
+build/
+dist/
+*.egg-info/
+
+# ==========================================
+# Environment Variables & Secrets (CRITICAL)
+# ==========================================
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.crt
+
+# ==========================================
+# Playwright & Browser Artifacts
+# ==========================================
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# ==========================================
+# QA Session Artifacts & Outputs
+# ==========================================
+logs/*.log
+videos/*.webm
+videos/*.mp4
+reports/*.pdf
+reports/*.csv
+!logs/.gitkeep
+!videos/.gitkeep
+!reports/.gitkeep
+
+# ==========================================
+# PyTorch / YOLOv8 Model Files & Caches
+# ==========================================
+*.pt
+*.onnx
+*.engine
+runs/
+.ultralytics/
+
+# ==========================================
+# IDE & Code Editor Files
+# ==========================================
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.user
+*.userossc
+*.sln.docstates
