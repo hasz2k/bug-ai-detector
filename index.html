@@ -100,11 +100,14 @@
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
 
-    // Dynamiczny adres hosta (działa zarówno dla localhost, jak i 127.0.0.1)
-    const host = window.location.hostname || '127.0.0.1';
-    const isSecure = window.location.protocol === 'https:';
-    const apiBase = `${isSecure ? 'https' : 'http'}://${host}:8000`;
-    const wsUrl = `${isSecure ? 'wss' : 'ws'}://${host}:8000/ws/stream`;
+    // Jeśli strona działa na GitHub Pages (hasz2k.github.io), podłączamy się do lokalnego backendu
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const host = isGitHubPages ? 'localhost' : (window.location.hostname || 'localhost');
+
+    // Zawsze wymuszamy http/ws dla lokalnego silnika FastAPI na porcie 8000
+    const apiBase = `http://${host}:8000`;
+    const wsUrl = `ws://${host}:8000/ws/stream`;
+
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
