@@ -33,7 +33,8 @@ BASE_DIR = Path(__file__).resolve().parent
 LOGS_DIR = BASE_DIR / "logs"
 VIDEOS_DIR = BASE_DIR / "videos"
 
-MODEL_PATH = "yolov8n.pt"
+CUSTOM_MODEL = Path("yolov8_ui_bugs.pt")
+MODEL_PATH = str(CUSTOM_MODEL) if CUSTOM_MODEL.is_file() else "yolov8n.pt"
 MONITOR_INDEX = 1
 TARGET_FPS = 30
 FRAME_INTERVAL_S = 1 / TARGET_FPS

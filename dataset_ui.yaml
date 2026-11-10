@@ -1,0 +1,11 @@
+path: ./dataset_ui
+train: images/train
+val: images/val
+
+names:
+  0: ui_button
+  1: ui_input
+  2: ui_modal
+  3: ui_toast
+  4: bug_clipping
+  5: bug_text_overflow
