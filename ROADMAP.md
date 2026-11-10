@@ -1,39 +1,67 @@
-# 🗺️ Bug AI Detector Engine — Development Roadmap
+# 🗺️ Product Roadmap / Mapa Drogowa — Bug AI Detector Engine
 
-Ten dokument przedstawia aktualny stan prac oraz plany rozwoju projektu **Bug AI Detector**.
-
----
-
-## 📌 Status Realizacji (Current Progress)
-
-### ✅ Faza 1: Silnik Detekcji & Podstawowy Stream
-- [x] Konfiguracja serwera FastAPI z cyklem życia `lifespan`.
-- [x] Przechwytywanie ekranu `mss` w osobnym wątku `ThreadPoolExecutor`.
-- [x] Detekcja obiektów UI przy użyciu modelu YOLOv8.
-- [x] Dedykowana obsługa połączeń WebSocket (`ConnectionManager`).
-
-### ✅ Faza 2: Autonomiczny Agent QA & Artefakty Sesji
-- [x] Integracja silnika Playwright w trybie headless do eksploracji interfejsu.
-- [x] Automatyczne nagrywanie sesji testowych do plików `.webm`.
-- [x] Zapis szczegółowych logów wykonywanych kroków w plikach `.log`.
-- [x] Statyczne serwowanie plików artefaktów (`/logs`, `/videos`).
-
-### ✅ Faza 3: Integracje, Raportowanie & Bezpieczeństwo
-- [x] Natywne REST API dla Jira Cloud (w formatowaniu ADF) oraz Redmine.
-- [x] Powiadomienia webhook dla Slacka i Discorda (`allowed_mentions` policy).
-- [x] Bezpieczny generator raportów PDF (ReportLab) oraz CSV (zabezpieczenie przed CSV Injection).
-- [x] Rozwiązanie problemów CORS oraz elastyczna obsługa WebSocketów dla `localhost` i `127.0.0.1`.
+[ English ](#-english) | [ Polski ](#-polski)
 
 ---
 
-## 🔮 Plany Rozwoju (Future Enhancements)
+## 🇬🇧 English
 
-### 🚀 Faza 4: Dedykowany Model Computer Vision (Q1/Q2 2027)
-- [ ] Trenowanie własnego modelu YOLO na dedykowanym zbiorze elementów UI (przyciski, inputy, modale, toasty błędów).
-- [ ] Detekcja nakładających się lub przysłoniętych elementów (UX accessibility check).
-- [ ] Automatyczne rozpoznawanie nieobsłużonych wyjątków w interfejsie graficznym.
+### Project Roadmap & Milestones
 
-### 🌐 Faza 5: Wielowątkowość i Skalowalność
-- [ ] Obsługa wielu równoległych sesji testowych w kontenerach Docker.
-- [ ] Panel zarządzania historią sesji testowych bezpośrednio z poziomu interfejsu HTML.
-- [ ] Dedykowana integracja z GitHub Actions CI/CD.
+#### ✅ Phase 1-3: Core Engine, Telemetry & Integration (Completed)
+- [x] High-frequency WebSocket telemetry streaming server in FastAPI.
+- [x] Unified Single Page Application (SPA) dashboard (Tailwind CLI + Chart.js).
+- [x] Real-time multilingual i18n support (PL/EN) with state persistence.
+- [x] Full static fallback Demo Mode for GitHub Pages.
+- [x] Autonomous Playwright browser crawling agent.
+- [x] REST API exports to Jira Cloud and Redmine bug trackers.
+- [x] Executive PDF (ReportLab) & CSV report generators.
+
+#### 🟡 Phase 4: Dedicated Computer Vision Model (In Progress / Deployed)
+- [x] Train script `train_ui_model.py` with multi-backend detection (CUDA / ROCm / MPS / CPU).
+- [x] Dynamic model resolution in FastAPI: automatic loading of `yolov8_ui_bugs.pt` with fallback to `yolov8n.pt`.
+- [x] Synthetic & Custom dataset pipeline setup (`dataset_ui.yaml`).
+- [ ] Model conversion to **ONNX / TensorRT** execution engines for >100 FPS inference.
+- [ ] Dataset expansion for complex visual glitches (*text overlapping*, *clipping*, *unrendered textures*).
+
+#### 🔵 Phase 5: Standalone Desktop Packaging (Planned)
+- [ ] Standalone executable bundle via **PyInstaller + pywebview**.
+- [ ] Background process orchestrator (silent FastAPI server startup upon launcher execution).
+- [ ] Multi-platform installers: Windows (`.exe`), Linux (`.AppImage`), macOS (`.dmg`).
+
+#### 🟣 Phase 6: CI/CD Pipeline & Multi-Agent Exploration (Future Releases)
+- [ ] CI/CD integration plugins (GitHub Actions / GitLab CI) as visual build gates.
+- [ ] Parallel multi-agent Playwright exploration clusters.
+- [ ] Embedded OCR engine (PaddleOCR / Tesseract) for UI spell-checking and localization validation.
+
+---
+
+## 🇵🇱 Polski
+
+### Plan Rozwoju i Kamienie Milowe
+
+#### ✅ Faza 1-3: Silnik Główny, Telemetria i Integracje (Zrealizowane)
+- [x] Wysokowydajny serwer telemetrii WebSocket oparty na FastAPI.
+- [x] Spójny dashboard SPA zbudowany z użyciem Tailwind CLI oraz Chart.js.
+- [x] Wielojęzyczność (PL/EN i18n) działająca w czasie rzeczywistym.
+- [x] Tryb Demo (fallback) przygotowany pod serwowanie na GitHub Pages.
+- [x] Autonomiczny agent eksploracyjny bazujący na środowisku Playwright.
+- [x] Integracja REST API z systemami śledzenia błędów Jira Cloud i Redmine.
+- [x] Automatyczne generowanie raportów w formatach PDF oraz CSV.
+
+#### 🟡 Faza 4: Dedykowany Model Computer Vision (Zrealizowana wdrożeniowo)
+- [x] Dedykowany skrypt treningowy `train_ui_model.py` z auto-detekcją sprzętu (CUDA / ROCm / MPS / CPU).
+- [x] Automatyczny wykrywacz autorskiego pliku wag `yolov8_ui_bugs.pt` z bezpiecznym fallbackiem do `yolov8n.pt`.
+- [x] Konfiguracja rurociągu syntetycznego zbioru danych (`dataset_ui.yaml`).
+- [ ] Eksport i konwersja wyuczonego modelu do formatów **ONNX / TensorRT** dla uzyskania wydajności >100 FPS.
+- [ ] Rozbudowa zbioru danych o bardziej skomplikowane usterki (*mesh clipping*, *text overflow*, *unrendered textures*).
+
+#### 🔵 Faza 5: Samodzielna Aplikacja Desktopowa (Planowane)
+- [ ] Utworzenie pełnego pakietu dystrybucyjnego przy użyciu **PyInstaller + pywebview**.
+- [ ] Menedżer procesów uruchamiający serwer FastAPI cicho w tle przy starcie okna GUI.
+- [ ] Pakiety instalacyjne dla systemów Windows (`.exe`), Linux (`.AppImage`) oraz macOS (`.dmg`).
+
+#### 🟣 Faza 6: CI/CD & Eksploracja Multi-Agentowa (Przyszłe Wydania)
+- [ ] Integracja z systemami CI/CD (GitHub Actions / GitLab CI) w roli automatycznej bramki wizualnej.
+- [ ] Architektura równoległej pracy wielu agentów Playwright.
+- [ ] Moduł OCR (PaddleOCR / Tesseract) do weryfikacji błędów językowych i literówek w interfejsie.

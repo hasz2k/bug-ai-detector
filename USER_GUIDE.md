@@ -1,4 +1,4 @@
-# 📖 Bug AI Detector & Reporter – User Guide / Instrukcja Użytkownika
+# 📖 User Guide / Podręcznik Użytkownika — Bug AI Detector Engine
 
 [ English ](#-english) | [ Polski ](#-polski)
 
@@ -6,274 +6,198 @@
 
 ## 🇬🇧 English
 
-Welcome to the **Bug AI Detector & Reporter** documentation. This guide provides step-by-step instructions on how to run, navigate, operate, and utilize the dashboard features to test applications, analyze vision AI detection, and inspect hardware performance telemetry.
+Welcome to the **Bug AI Detector Engine** User Guide. This document provides complete instructions on running, operating, navigating, and managing testing workflows.
+
+---
 
 ### 📑 Table of Contents
-
 1. [Getting Started & Installation](#1-getting-started--installation)
-   * [Windows](#windows)
-   * [macOS](#macos)
-   * [Linux](#linux)
 2. [Dashboard Overview & Key Metrics](#2-dashboard-overview--key-metrics)
-3. [Executing AI Test Runs](#3-executing-ai-test-runs)
-4. [Inspecting & Managing Bug Reports](#4-inspecting--managing-bug-reports)
-5. [Telemetry & Performance Analysis](#5-telemetry--performance-analysis)
-6. [Integrations & AI Threshold Configuration](#6-integrations--ai-threshold-configuration)
+3. [Autonomous QA Agent Execution](#3-autonomous-qa-agent-execution)
+4. [Issue Tracking & Integrations (Jira / Redmine)](#4-issue-tracking--integrations-jira--redmine)
+5. [Executive Reporting (PDF / CSV)](#5-executive-reporting-pdf--csv)
 
 ---
 
 ### 1. Getting Started & Installation
 
-**Bug AI Detector** is a zero-dependency, single-file Single Page Application (SPA). You do not need `node_modules`, `npm`, or complex build pipelines to run it locally.
-
-#### 🌐 Live Access
-You can launch the dashboard immediately via GitHub Pages without downloading anything:  
+#### 🌐 Live Demo Access
+You can launch the dashboard directly in your browser via GitHub Pages without local setup:  
 🔗 [**https://hasz2k.github.io/bug-ai-detector/**](https://hasz2k.github.io/bug-ai-detector/)
 
-#### 💻 Running Locally by OS
+#### 💻 Running Locally by Operating System
 
-First, clone the repository to your local machine:
+First, clone the repository:
 ```bash
 git clone https://github.com/hasz2k/bug-ai-detector.git
 cd bug-ai-detector
 ```
 
 ##### Windows
-* **Method 1 (File Explorer):** Navigate to the project folder and double-click `index.html`. It will open in your default browser (Chrome, Edge, Firefox).
-* **Method 2 (Command Prompt / PowerShell):**
+* **Method 1 (File Explorer):** Open the project folder and double-click `index.html`.
+* **Method 2 (PowerShell / Command Prompt):**
   ```powershell
   start index.html
   ```
-* **Method 3 (Local HTTP Server with Python):**
+* **Method 3 (Python Local HTTP Server):**
   ```cmd
-  python -m http.server 8000
+  python -m http.server 8085
   ```
-  Then open `http://localhost:8000` in your browser.
+  Navigate to `http://localhost:8085`.
 
 ##### macOS
-* **Method 1 (Finder):** Open Finder, locate the repository folder, and double-click `index.html`.
+* **Method 1 (Finder):** Locate the cloned folder and double-click `index.html`.
 * **Method 2 (Terminal):**
   ```bash
   open index.html
   ```
-* **Method 3 (Local HTTP Server):**
+* **Method 3 (Python Local Server):**
   ```bash
-  python3 -m http.server 8000
+  python3 -m http.server 8085
   ```
-  Then open `http://localhost:8000` in Safari, Chrome, or Firefox.
+  Navigate to `http://localhost:8085`.
 
-##### Linux (Ubuntu / Debian / Arch / Fedora)
-* **Method 1 (GUI):** Open your file manager and double-click `index.html`.
-* **Method 2 (Terminal - Default Browser):**
+##### Linux (CachyOS / Arch / Ubuntu / Debian)
+* **Method 1 (Terminal - Default Browser):**
   ```bash
   xdg-open index.html
   ```
-* **Method 3 (Terminal - Specific Browser):**
+* **Method 2 (Python Local Server):**
   ```bash
-  google-chrome index.html
-  # or
-  firefox index.html
+  python3 -m http.server 8085
   ```
-* **Method 4 (Local HTTP Server):**
-  ```bash
-  python3 -m http.server 8000
-  ```
-  Then navigate to `http://localhost:8000`.
-
-* **Language Switcher:** Toggle between **PL** and **EN** in the top-right header. All interface components, tables, and charts adapt instantly without page reloads.
+  Navigate to `http://localhost:8085`.
 
 ---
 
 ### 2. Dashboard Overview & Key Metrics
 
-The main **Dashboard** view offers an instant executive overview of your testing environment:
-
-* **KPI Cards:** Track critical blockers, total detected anomalies, scenario coverage percentages, and active AI agent counts.
-* **Error Trends Chart:** View historical detection rates across previous software builds (`#1080`–`#1084`).
-* **Category Distribution:** Analyze defects grouped into *Visual/Texture*, *Logic/Soft-lock*, *Performance/FPS*, and *Localization/OCR*.
-* **Live Feed Agent Preview:** Monitor live bounding-box triggers and camera streams from active exploration agents.
+* **Header Bar**: Displays real-time connection status (*Live Streaming* / *Live Demo*), active FPS counter, and the **PL / EN** language selector.
+* **KPI Cards**: Tracks critical blockers, total detected visual anomalies, scenario coverage, and active AI agent bots.
+* **Live AI Vision Telemetry Stream**: Shows a live stream with bounding boxes superimposed over detected UI elements (`ui_button`, `ui_input`, `ui_toast`).
+* **Analytics Charts**: Interactive line and doughnut charts tracking bug detection trends vs build iterations and defect classifications.
 
 ---
 
-### 3. Executing AI Test Runs
+### 3. Autonomous QA Agent Execution
 
-To launch an autonomous AI testing session:
-
-1. Click the **"New AI Test"** button in the sidebar or under the **Test Runs** tab.
-2. **Select Target Project:** Choose from available environments (e.g., *Unreal Engine 5.3 RPG*, *Android Mobile App*, *Web Portal*).
-3. **Choose Agent Type:**
-   * **Agent Explorer:** Freeform navigation, visual mesh clipping, collision breaches.
-   * **Agent Spec-Driven:** Functional assertions, UI logic, and dialog state validation.
-   * **Agent Stress & Chaos:** Extreme input flooding and edge-case execution.
-4. **Set Duration:** Adjust the session runtime slider (10 to 180 minutes).
-5. Click **"Run agents"**. The new run will appear with a `Starting…` status in the test run table.
+1. In the **Autonomous QA Agent Launcher** card, enter the target web application URL (e.g., `http://localhost:8085`).
+2. Click **Run Agent Exploration**.
+3. The Playwright engine will launch headless in the background, navigate the site, perform assertions, and stream telemetry data back to the dashboard.
 
 ---
 
-### 4. Inspecting & Managing Bug Reports
+### 4. Issue Tracking & Integrations (Jira / Redmine)
 
-Navigate to **Bug Reports** or click **"Details"** on any bug item:
-
-* **Visual Bounding Box:** Inspect the exact screen area where the AI vision model detected visual clipping or anomalies.
-* **Reproduction Steps:** Review sequential steps auto-generated by the AI agent during session execution.
-* **Environment & Crash Logs:** Inspect technical details (GPU, OS, engine logs, and stack traces).
-* **False Positive Handling:** Click **"Mark as False Positive"** to ignore non-reproducible or invalid AI alerts.
-* **Exporting Issues:** Click **"Export to Jira"** or **"Send to Slack"** to sync findings with your development team's workflow.
+1. Under **Export Issue to Tracker**, enter:
+   - **Bug Summary / Title**
+   - **Reproduction details & logs**
+2. Click **Jira Cloud** or **Redmine**.
+3. A toast notification will confirm creation and show the ticket identifier.
 
 ---
 
-### 5. Telemetry & Performance Analysis
+### 5. Executive Reporting (PDF / CSV)
 
-Under the **Performance Analysis** tab:
-
-* **FPS Profile:** Identify exact timestamps where framerates drop below target thresholds (e.g., < 30 FPS).
-* **VRAM Allocation:** Monitor memory consumption curves over 30-minute test windows to catch memory leaks.
-* **Hardware Anomalies List:** Review hardware events auto-correlated with visual or log errors.
-
----
-
-### 6. Integrations & AI Threshold Configuration
-
-In the **Integrations & AI** tab:
-
-* **Integrations:** Check statuses for connected ticketing tools (*Jira*, *GitHub Issues*, *Slack Alerts*).
-* **Computer Vision Threshold Slider:** Adjust the detection confidence threshold (50% – 99%). Higher thresholds reduce false alarms in scenes with complex volumetric lighting or shaders.
-* **Verification Rule:** Toggle *"Require step reproduction before notifying Dev"* to ensure high assertion reliability.
+1. In the **Executive Reports** panel, click **Generate PDF & CSV Reports**.
+2. Once processing completes, download links for the generated `.pdf` and `.csv` files will appear below the button.
 
 ---
 
 ## 🇵🇱 Polski
 
-Witaj w podręczniku użytkownika **Bug AI Detector & Reporter**. Niniejszy przewodnik zawiera instrukcję krok po kroku, jak uruchomić projekt na różnych systemach operacyjnych (Windows, macOS, Linux), nawigować po interfejsie, przeprowadzać testy AI oraz monitorować telemetrię wydajności.
-
-### 📑 Spis treści
-
-1. [Pierwsze kroki i Instalacja](#1-pierwsze-kroki-i-instalacja)
-   * [Windows](#windows-1)
-   * [macOS](#macos-1)
-   * [Linux](#linux-1)
-2. [Przegląd Dashboardu i Wskaźniki KPI](#2-przegląd-dashboardu-i-wskaźniki-kpi)
-3. [Uruchamianie Test Runów AI](#3-uruchamianie-test-runów-ai)
-4. [Analiza i Obsługa Zgłoszeń Błędów](#4-analiza-i-obsługa-zgłoszeń-błędów)
-5. [Telemetria i Analiza Wydajności](#5-telemetria-i-analiza-wydajności)
-6. [Integracje i Konfiguracja Czułości AI](#6-integracje-i-konfiguracja-czułości-ai)
+Witaj w Podręczniku Użytkownika **Bug AI Detector Engine**. Dokument zawiera kompletny instruktaż obsługi systemu, przeprowadzenia testów oraz pracy z raportami.
 
 ---
 
-### 1. Pierwsze kroki i Instalacja
+### 📑 Spis treści
+1. [Pierwsze Kroki i Uruchomienie](#1-pierwsze-kroki-i-uruchomienie)
+2. [Nawigacja po Dashboardzie i Wskaźniki KPI](#2-nawigacja-po-dashboardzie-i-wskaźniki-kpi)
+3. [Uruchamianie Agenta Autonomicznego](#3-uruchamianie-agenta-autonomicznego)
+4. [Eksport Zgłoszeń (Jira / Redmine)](#4-eksport-zgłoszeń-jira--redmine)
+5. [Generowanie Raportów (PDF / CSV)](#5-generowanie-raportów-pdf--csv)
 
-**Bug AI Detector** to lekka aplikacja typu SPA (Single Page Application) zawarta w jednym pliku HTML. Nie wymaga instalowania pakietów Node (`npm`), bibliotek zewnętrznych ani przeprowadzania procesu kompilacji.
+---
 
-#### 🌐 Dostęp online
-Aplikację można uruchomić natychmiast w przeglądarce bez pobierania czegokolwiek z dysku:  
+### 1. Pierwsze Kroki i Uruchomienie
+
+#### 🌐 Dostęp Online (Live Demo)
+Aplikację można otworzyć w przeglądarce za pośrednictwem serwisu GitHub Pages:  
 🔗 [**https://hasz2k.github.io/bug-ai-detector/**](https://hasz2k.github.io/bug-ai-detector/)
 
-#### 💻 Uruchamianie lokalne na różnych systemach
+#### 💻 Uruchamianie Lokalne na Różnych Systemach
 
-Najpierw sklonuj repozytorium na swój komputer:
+Pobierz repozytorium:
 ```bash
 git clone https://github.com/hasz2k/bug-ai-detector.git
 cd bug-ai-detector
 ```
 
 ##### Windows
-* **Metoda 1 (Eksplorator plików):** Wejdź do folderu z projektem i kliknij dwukrotnie plik `index.html`. Otworzy się on w Twojej domyślnej przeglądarce.
-* **Metoda 2 (Wiersz poleceń / PowerShell):**
+* **Metoda 1 (Eksplorator plików):** Otwórz folder z projektem i kliknij dwukrotnie plik `index.html`.
+* **Metoda 2 (PowerShell):**
   ```powershell
   start index.html
   ```
-* **Metoda 3 (Lokalny serwer HTTP Python):**
+* **Metoda 3 (Lokalny serwer Python):**
   ```cmd
-  python -m http.server 8000
+  python -m http.server 8085
   ```
-  Wpisz w przeglądarce adres `http://localhost:8000`.
+  Otwórz w przeglądarce: `http://localhost:8085`.
 
 ##### macOS
-* **Metoda 1 (Finder):** Otwórz Finder, przejdź do sklonowanego folderu i kliknij dwukrotnie plik `index.html`.
+* **Metoda 1 (Finder):** Wejdź do folderu i kliknij dwukrotnie `index.html`.
 * **Metoda 2 (Terminal):**
   ```bash
   open index.html
   ```
-* **Metoda 3 (Lokalny serwer HTTP):**
+* **Metoda 3 (Serwer Python):**
   ```bash
-  python3 -m http.server 8000
+  python3 -m http.server 8085
   ```
-  Otwórz adres `http://localhost:8000` w Safari, Chrome lub Firefox.
+  Otwórz: `http://localhost:8085`.
 
-##### Linux (Ubuntu / Debian / Arch / Fedora)
-* **Metoda 1 (Menedżer plików):** Otwórz folder projektu w menedżerze plików i kliknij dwukrotnie `index.html`.
-* **Metoda 2 (Terminal - Domyślna przeglądarka):**
+##### Linux (CachyOS / Arch / Ubuntu / Debian)
+* **Metoda 1 (Terminal):**
   ```bash
   xdg-open index.html
   ```
-* **Metoda 3 (Terminal - Wybrana przeglądarka):**
+* **Metoda 2 (Serwer Python):**
   ```bash
-  google-chrome index.html
-  # lub
-  firefox index.html
+  python3 -m http.server 8085
   ```
-* **Metoda 4 (Lokalny serwer HTTP):**
-  ```bash
-  python3 -m http.server 8000
-  ```
-  Przejdź pod adres `http://localhost:8000`.
-
-* **Zmiana języka:** W prawym górnym rogu nagłówka przełączaj się między **PL** a **EN**. Cały interfejs, dane w tabelach i wykresy dostosują się natychmiast bez przeładowywania strony.
+  Otwórz: `http://localhost:8085`.
 
 ---
 
-### 2. Przegląd Dashboardu i Wskaźniki KPI
+### 2. Nawigacja po Dashboardzie i Wskaźniki KPI
 
-Główny widok **Dashboard** prezentuje podsumowanie stanu jakości projektu:
-
-* **Karty KPI:** Śledź liczbę błędów krytycznych (Blockers), sumę wykryć, procentowe pokrycie scenariuszy oraz stan botów AI.
-* **Wykres trendu błędów:** Analizuj dynamikę wykrywania usterek na przestrzeni ostatnich buildów (`#1080`–`#1084`).
-* **Kategorie niezgodności:** Przeglądaj wykres kołowy podziału na błędy *wizualne*, *logiczne*, *wydajnościowe* oraz *lokalizacyjne*.
-* **Podgląd na żywo:** Obserwuj aktywność agenta #04, zarysowania ramek detekcji (bounding box) i wskaźniki FPS/VRAM w czasie rzeczywistym.
+* **Pasek Nagłówka**: Wyświetla status połączenia na żywo (*Live Streaming* / *Live Demo*), płynność klatek (FPS) oraz przełącznik języka **PL / EN**.
+* **Karty KPI**: Monitorują liczbę blokerów krytycznych, łączną liczbę anomalii, pokrycie scenariuszy oraz aktywne boty.
+* **Stream Telemetrii Vision AI**: Prezentuje podgląd ekranu z nałożonymi w czasie rzeczywistym ramkami wykrytych obiektów UI (`ui_button`, `ui_input`, `ui_toast`).
+* **Wykresy Analityczne**: Śledzą dynamikę wykryć w kolejnych buildach oraz kategoryzację typów błędów.
 
 ---
 
-### 3. Uruchamianie Test Runów AI
+### 3. Uruchamianie Agenta Autonomicznego
 
-Aby rozpocząć nową sesję testową z udziałem agentów AI:
-
-1. Kliknij przycisk **"Nowy Test AI"** w panelu bocznym (Sidebar) lub w zakładce **Test Runy & Agenci AI**.
-2. **Wybierz cel testu:** Wybierz środowisko docelowe (np. *Unreal Engine 5.3 RPG*, *Aplikacja Android*, *Portal Web*).
-3. **Wybierz typ agenta:**
-   * **Agent Explorer:** Eksploracja swobodna, przenikanie siatek (mesh clipping), kolizje.
-   * **Agent Spec-Driven:** Testy funkcjonalne według specyfikacji, logika UI i drzewa dialogowe.
-   * **Agent Stress & Chaos:** Ekstremalne przeciążenia akcjami i testy stabilności.
-4. **Ustaw czas trwania:** Dostosuj suwak czasu sesji (od 10 do 180 minut).
-5. Kliknij **"Uruchom agenty"**. Nowy bieg pojawi się ze statusem `Uruchamianie…` na liście historii sesji.
+1. W sekcji **Autonomous QA Agent Launcher** wpisz adres URL testowanej aplikacji (np. `http://localhost:8085`).
+2. Kliknij **Run Agent Exploration**.
+3. Silnik Playwright uruchomi się bezgłowo w tle, wykona inspekcję i przesłanie zebranych danych telemetrycznych.
 
 ---
 
-### 4. Analiza i Obsługa Zgłoszeń Błędów
+### 4. Eksport Zgłoszeń (Jira / Redmine)
 
-Przejdź do zakładki **Zgłoszenia błędów** lub kliknij **"Szczegóły"** przy wybranym błędzie:
-
-* **Wizualny Bounding Box:** Zobacz klatkę z nałożoną czerwoną ramką wykrycia obszaru błędu przez komputerowe rozpoznawanie obrazu.
-* **Kroki do odtworzenia:** Przeanalizuj wygenerowaną przez AI ścieżkę zdarzeń prowadzącą do wystąpienia usterki.
-* **Logi i Środowisko:** Sprawdź specyfikację techniczną (GPU, OS, sterowniki) oraz fragmenty logów silnika.
-* **False Positive:** Kliknij **"Oznacz jako False Positive"**, aby wykluczyć niepoprawne wykrycie z wyliczania statystyk KPI.
-* **Eksport zgłoszeń:** Użyj przycisków **"Eksportuj do Jira"** lub **"Wyślij na Slack"**, aby przekazać błąd do zespołu deweloperskiego.
+1. W module **Export Issue to Tracker** podaj:
+   - **Tytuł / Podsumowanie usterki**
+   - **Szczegóły odtworzenia i logi**
+2. Kliknij przycisk **Jira Cloud** lub **Redmine**.
+3. Powiadomienie toast wyświetli numer wygenerowanego zgłoszenia.
 
 ---
 
-### 5. Telemetria i Analiza Wydajności
+### 5. Generowanie Raportów (PDF / CSV)
 
-W zakładce **Analiza wydajności**:
-
-* **Profil FPS:** Znajdź dokładne momenty spadków klatek poniżej progu płynności (< 30 FPS).
-* **Alokacja VRAM:** Analizuj pobór pamięci karty graficznej w 30-minutowym oknie czasowym pod kątem wycieków pamięci.
-* **Anomalie sprzętowe:** Przeglądaj zdarzenia wygenerowane przez system telemetrii połączone z konkretnymi modułami gry.
-
----
-
-### 6. Integracje i Konfiguracja Czułości AI
-
-W zakładce **Integracje & AI**:
-
-* **Statusy połączeń:** Weryfikuj aktywność integracji z systemami zewnętrznymi (*Jira*, *GitHub Issues*, *Slack Alerts*).
-* **Suwak czułości AI Vision:** Dostosuj próg pewności detekcji (50% – 99%). Wyższy próg zmniejsza ryzyko fałszywych alarmów przy skomplikowanym oświetleniu sceny.
-* **Weryfikacja dwuetapowa:** Włącz lub wyłącz opcję *"Wymagaj odtworzenia kroku przed powiadomieniem Dev"* w celu zwiększenia wiarygodności powiadomień.
+1. W sekcji **Executive Reports** kliknij **Generate PDF & CSV Reports**.
+2. Po zakończeniu generowania poniżej pojawią się bezpośrednie linki do pobrania plików `.pdf` i `.csv`.
