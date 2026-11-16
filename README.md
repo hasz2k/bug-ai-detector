@@ -14,17 +14,15 @@
 ## 🇬🇧 English
 
 ### Overview
-**Bug AI Detector Engine** is a professional-grade Quality Assurance automation suite. It leverages custom computer vision (YOLOv8), autonomous web crawling agents (Playwright), and real-time WebSocket telemetry streams to detect visual bugs, layout overflows, mesh clipping, and UI anomalies across web and desktop applications.
+**Bug AI Detector Engine** is a Quality Assurance automation suite combining custom YOLOv8 computer vision (`IMGSZ=1280`), native Linux Wayland/X11 screen capture, synthetic & real-world dataset generation tools, and real-time WebSocket telemetry streams to detect UI components and visual layout defects.
 
 ### 🌟 Key Features
-- **Live Vision AI Telemetry**: Real-time frame processing over WebSockets with live bounding box rendering.
-- **Custom UI QA Model Pipeline**: Train specialized models on custom UI elements (`ui_button`, `ui_input`, `ui_modal`, `ui_toast`) and visual defects (`bug_clipping`, `bug_text_overflow`).
-- **Autonomous QA Agent**: Driven by Playwright to automatically crawl target URLs, trigger interactions, and capture telemetry logs.
-- **Issue Tracker Export**: Direct integration with **Jira Cloud** (ADF format) and **Redmine** REST APIs.
-- **Executive Reporting**: Automated report generator producing standard **PDF** and **CSV** deliverables.
-- **Multilingual Dashboard (i18n)**: Instant PL/EN interface language toggle with `localStorage` state persistence.
-- **Production CSS Pipeline**: Minified and optimized stylesheet built via Tailwind CLI (`dist/output.css`).
-- **Demo Mode Fallback**: Automatic mock telemetry simulation for static hosting environments (e.g., GitHub Pages).
+- **Live Vision AI Telemetry**: Non-blocking frame inference over WebSockets (`/ws/stream`) with live bounding-box rendering and FPS monitoring.
+- **Native Wayland & X11 Capture**: Automatic session detection supporting KDE Plasma Wayland (`spectacle` via `/dev/shm` RAM buffer) and X11 (`mss`), plus `CAPTURE_REGION` cropping.
+- **9-Class UI & Bug Detection Model (v4)**: Detects standard controls (`button`, `link`, `input`, `checkbox`, `select`, `ui_modal`) and visual defects (`bug_clipping`, `bug_text_overflow`, `bug_overlap`).
+- **Dataset & Evaluation Toolkit**: Includes synthetic HTML bug generator (`gen_dataset.py`), `robots.txt`-compliant real web scraper (`collect_real.py`), class balancer (`merge_real.py`), label visualizer (`preview_labels.py`), and isolated HTML tester (`test_model.py`).
+- **Multi-Engine Inference**: Automatic loader prioritizing OpenVINO / ONNX / PyTorch on CPU and TensorRT `.engine` / PyTorch on GPU.
+- **Multilingual Dashboard (i18n)**: Instant PL/EN interface language toggle with `localStorage` state persistence and GitHub Pages Demo Mode fallback.
 
 ---
 
@@ -40,152 +38,156 @@
 ┌─────────────────────────────────────────────────────────┐
 │                 FastAPI Backend Engine                  │
 ├────────────────────────────┬────────────────────────────┤
-│ Vision AI Telemetry        │ Playwright Autonomous Agent│
-│  └─ YOLOv8 / YOLOv11 Model │  └─ Target UI Crawler      │
+│ Vision AI Telemetry        │ Screen Capture Worker      │
+│  └─ YOLOv8 (1280px, 9 cls) │  └─ Wayland (/dev/shm) /X11│
 └────────────────────────────┴────────────────────────────┘
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────┐
-│            Jira / Redmine & PDF/CSV Exporter            │
-└────────────────────────────┴────────────────────────────┘
-```
+│       Dataset Toolkit (gen_dataset / collect_real)      │
+└─────────────────────────────────────────────────────────┘
 
----
+🚀 Quick Start
+Prerequisites
 
-### 🚀 Quick Start
+    Python 3.10+
 
-#### Prerequisites
-- Python 3.10+
-- Node.js & npm (for Tailwind CLI building)
-- Google Chrome / Chromium (for Playwright agent)
+    Node.js & npm (optional, for rebuilding Tailwind CSS)
 
-#### Installation & Execution
+    Chromium / Playwright (playwright install chromium)
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/hasz2k/bug-ai-detector.git
-   cd bug-ai-detector
-   ```
+    spectacle (for KDE Plasma Wayland capture) or X11 session (mss)
 
-2. **Setup Virtual Environment:**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   playwright install chromium
-   ```
+Installation & Execution
 
-3. **Build Production CSS:**
-   ```bash
-   npm install
-   npm run build:css
-   ```
+    Clone the repository:
+    Bash
 
-4. **Start Backend Server:**
-   ```bash
-   python -m uvicorn backend.server:app --host 127.0.0.1 --port 8000 --reload
-   ```
+    git clone [https://github.com/hasz2k/bug-ai-detector.git](https://github.com/hasz2k/bug-ai-detector.git)
+    cd bug-ai-detector
 
-5. **Start Frontend Server:**
-   ```bash
-   python -m http.server 8085
-   ```
-   Open `http://localhost:8085` in your web browser.
+    Setup Virtual Environment:
+    Bash
 
----
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    playwright install chromium
 
-### 🎯 Training Custom UI Model (Phase 4)
+    Start Backend Server (with optional environment tuning):
+    Bash
 
-To train a dedicated UI detection model on your dataset:
+    IMGSZ=1280 CONF=0.35 python backend/server.py
 
-```bash
-python train_ui_model.py --dataset dataset_ui.yaml --epochs 50 --batch 16 --device auto
-```
+    To capture a specific screen region (e.g., left half of a 1920×1080 display):
+    Bash
 
-Copy the generated model weights to the project root:
-```bash
-cp runs/ui/bug_ai_ui_model_*/weights/best.pt ./yolov8_ui_bugs.pt
-```
-The FastAPI backend will automatically detect `yolov8_ui_bugs.pt` upon startup (falling back to `yolov8n.pt` if unavailable).
+    CONF=0.35 CAPTURE_REGION="0,0,960,1080" python backend/server.py
 
----
+    Start Frontend Dashboard:
+    Bash
 
-## 🇵🇱 Polski
+    python -m http.server 8085
 
-### Opis projektu
-**Bug AI Detector Engine** to zaawansowany system automatyzacji procesów Quality Assurance (QA). Wykorzystuje dedykowaną detekcję komputerową (YOLOv8), autonomiczne boty eksploracyjne (Playwright) oraz telemetrię WebSocket w czasie rzeczywistym do natychmiastowego identyfikowania usterek wizualnych, błędów układu (layout overflow, mesh clipping) oraz anomalii w aplikacjach webowych i desktopowych.
+    Open http://localhost:8085 in your web browser.
 
----
+🎯 Dataset Pipeline & Testing
 
-### 🌟 Główne Funkcjonalności
-- **Telemetria Vision AI na Żywo**: Płynna analiza klatek w czasie rzeczywistym przez WebSocket z dynamicznym rysowaniem ramek detekcji (*bounding boxes*).
-- **Dedykowany Pipeline Modelu UI QA**: Trenuj własne modele na komponentach interfejsu (`ui_button`, `ui_input`, `ui_modal`, `ui_toast`) oraz usterkach wizualnych (`bug_clipping`, `bug_text_overflow`).
-- **Autonomiczny Agent QA**: Integracja z Playwright umożliwiająca samodzielną eksplorację adresów URL, symulację akcji użytkownika oraz rejestrację logów.
-- **Bezpośrednia Integracja z Trackerami**: Jednoklikowy eksport zgłoszeń błędów do systemów **Jira Cloud** (format ADF) oraz **Redmine**.
-- **Raporty Wykonawcze**: Automatyczny generator zbiorczych raportów w formatach **PDF** oraz **CSV**.
-- **Wielojęzyczny Dashboard (i18n)**: Przełącznik języka (Polski / Angielski) działający w czasie rzeczywistym z pamięcią stanu w `localStorage`.
-- **Produkcyjny Pipeline CSS**: Skompresowany i zoptymalizowany arkusz stylów via Tailwind CLI (`dist/output.css`).
-- **Tryb Demo / Offline Fallback**: Automatyczna symulacja danych dla środowisk bez dostępnego serwera backendowego (np. GitHub Pages).
+    Generate synthetic UI & bug samples:
+    Bash
 
----
+    python gen_dataset.py --root ./dataset_synth --count 1500
 
-### 🚀 Szybki Start
+    Collect real websites & balance classes:
+    Bash
 
-#### Wymagania wstępne
-- Python 3.10+
-- Node.js & npm (do kompilacji CSS przez Tailwind CLI)
-- Google Chrome / Chromium (dla agenta Playwright)
+    python collect_real.py --urls urls_train.txt --root dataset_real_big --crawl 8 --scrolls 2 --test-frac 0.25
+    python preview_labels.py dataset_real_big --split train
+    python merge_real.py --real dataset_real_big --target ./dataset_synth
 
-#### Instrukcja Krok po Kroku
+    Test model on a standalone HTML file:
+    Bash
 
-1. **Sklonuj repozytorium:**
-   ```bash
-   git clone https://github.com/hasz2k/bug-ai-detector.git
-   cd bug-ai-detector
-   ```
+    python test_model.py test.html --weights yolov8_ui_bugs_v4.pt
 
-2. **Skonfiguruj środowisko Python:**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   playwright install chromium
-   ```
+    Export weights to ONNX / OpenVINO:
+    Bash
 
-3. **Zbuduj zoptymalizowany plik CSS:**
-   ```bash
-   npm install
-   npm run build:css
-   ```
+    python export_ui_model.py --weights yolov8_ui_bugs_v4.pt --format onnx --imgsz 1280 --fp32
+    
 
-4. **Uruchom serwer Backendowy (FastAPI):**
-   ```bash
-   python -m uvicorn backend.server:app --host 127.0.0.1 --port 8000 --reload
-   ```
+👤 Author & Support
 
-5. **Uruchom Dashboard UI:**
-   ```bash
-   python -m http.server 8085
-   ```
-   Otwórz przeglądarkę pod adresem: `http://localhost:8085`.
+    👤 Author: @hasz2k
 
----
+    ₿ Bitcoin Address: bc1pjgctwfj5csuffdt54cl663830e77d88a65agatx2csfffedwr73q7hegq9
 
-### 🎯 Trening Własnego Modelu UI (Faza 4)
+🇵🇱 Polski
+Opis projektu
 
-Aby wyszkolić model na własnym zestawie danych UI:
+Bug AI Detector Engine to narzędzie automatyzacji Quality Assurance (QA) łączące dedykowany model wizji komputerowej YOLOv8 (IMGSZ=1280), natywne przechwytywanie ekranu pod Linuxem (Wayland / X11), potok generowania danych treningowych oraz strumieniowanie telemetrii WebSocket w czasie rzeczywistym do wykrywania elementów UI oraz wizualnych usterek układu.
+🌟 Główne Funkcjonalności
 
-```bash
-python train_ui_model.py --dataset dataset_ui.yaml --epochs 50 --batch 16 --device auto
-```
+    Telemetria Vision AI na Żywo: Nieblokująca inferencja klatek przez WebSocket (/ws/stream) z dynamicznym rysowaniem ramek detekcji (bounding boxes) i licznikiem FPS.
 
-Po zakończeniu uczenia skopiuj wygenerowany plik wag do korzenia projektu:
-```bash
-cp runs/ui/bug_ai_ui_model_*/weights/best.pt ./yolov8_ui_bugs.pt
-```
-Serwer backendowy automatycznie wykryje plik `yolov8_ui_bugs.pt` przy następnym uruchomieniu (z bezpiecznym fallbackiem do `yolov8n.pt` w przypadku braku pliku).
+    Natywne Przechwytywanie Wayland i X11: Automatyczne wykrywanie sesji z obsługą KDE Plasma Wayland (spectacle z buforem RAM /dev/shm) oraz X11 (mss), wraz z wycinaniem obszaru CAPTURE_REGION.
 
----
+    9-Klasowy Model UI i Defektów (v4): Wykrywa standardowe kontrolki (button, link, input, checkbox, select, ui_modal) oraz błędy wizualne (bug_clipping, bug_text_overflow, bug_overlap).
 
-## 📄 License / Licencja
-Distributed under the MIT License. See `LICENSE` for details. / *Projekt udostępniany na licencji MIT.*
+    Zestaw Narzędzi Danych i Walidacji: Generator syntetycznych stron z błędami (gen_dataset.py), scraper prawdziwych serwisów respektujący robots.txt (collect_real.py), skrypt balansowania klas (merge_real.py), podgląd etykiet (preview_labels.py) oraz izolowany tester plików HTML (test_model.py).
+
+    Wielosilnikowy Loader Wag: Automatyczny wybór OpenVINO / ONNX / PyTorch na CPU oraz TensorRT .engine / PyTorch na GPU.
+
+    Wielojęzyczny Dashboard (i18n): Przełącznik języka (PL / EN) z pamięcią stanu w localStorage oraz trybem Demo dla GitHub Pages.
+
+🚀 Szybki Start
+Wymagania wstępne
+
+    Python 3.10+
+
+    Chromium / Playwright (playwright install chromium)
+
+    spectacle (dla sesji KDE Plasma Wayland) lub sesja X11 (mss)
+
+Instalacja i Uruchomienie
+
+    Sklonuj repozytorium:
+    Bash
+
+    git clone [https://github.com/hasz2k/bug-ai-detector.git](https://github.com/hasz2k/bug-ai-detector.git)
+    cd bug-ai-detector
+
+    Skonfiguruj środowisko wirtualne Python:
+    Bash
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    playwright install chromium
+
+    Uruchom serwer Backendowy (FastAPI):
+    Bash
+
+    IMGSZ=1280 CONF=0.35 python backend/server.py
+
+    Przechwytywanie wybranego wycinka ekranu (np. lewa połowa ekranu 1920×1080):
+    Bash
+
+    CONF=0.35 CAPTURE_REGION="0,0,960,1080" python backend/server.py
+
+    Uruchom Dashboard UI:
+    Bash
+
+    python -m http.server 8085
+
+    Otwórz w przeglądarce: http://localhost:8085.
+
+👤 Author & Support / Autor i Wsparcie
+
+    👤 Author: @hasz2k
+
+    ₿ Bitcoin Address: bc1pjgctwfj5csuffdt54cl663830e77d88a65agatx2csfffedwr73q7hegq9
+    
+📄 License / Licencja
+
+Distributed under the MIT License. See LICENSE for details. / Projekt udostępniany na licencji MIT.

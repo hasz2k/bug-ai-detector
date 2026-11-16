@@ -8,3 +8,6 @@ playwright
 requests
 python-dotenv
 reportlab
+onnx>=1.16.0
+onnxslim>=0.1.32
+onnxruntime-gpu>=1.18.0  # Użyj 'onnxruntime' dla samego CPU lub 'onnxruntime-rocm' dla GPU AMD pod Linuxem

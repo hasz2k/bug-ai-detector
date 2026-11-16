@@ -1,0 +1,23 @@
+# Strony do zbioru uczącego: "nazwa pełny_adres" (adres = ostatni element linii).
+# Same strony przeznaczone do ćwiczeń z testowania, dokumentacja i wolne serwisy.
+# Nie dodawaj sklepów komercyjnych (Allegro itp.) - blokują automaty, a my nic nie obchodzimy.
+# Skrypt sam pominie strony zabronione w robots.txt i skończy z domeną po blokadzie (403/429/captcha).
+# Adresy sprawdź w przeglądarce, jeśli skrypt zgłosi [BŁĄD] dla któregoś z nich.
+
+the_internet        https://the-internet.herokuapp.com/
+demoqa              https://demoqa.com/
+practice_login      https://practicetestautomation.com/practice-test-login/
+automationexercise  https://automationexercise.com/
+books_toscrape      https://books.toscrape.com/
+quotes_toscrape     https://quotes.toscrape.com/
+webscraper_shop     https://webscraper.io/test-sites/e-commerce/static
+todomvc             https://todomvc.com/
+formy               https://formy-project.herokuapp.com/form
+uitestingplayground http://uitestingplayground.com/
+testpages           https://testpages.eviltester.com/
+opencart_demo       https://demo.opencart.com/
+bootstrap_forms     https://getbootstrap.com/docs/5.3/forms/overview/
+python_docs         https://docs.python.org/3/
+selenium_docs       https://www.selenium.dev/documentation/
+wikipedia_ui        https://en.wikipedia.org/wiki/User_interface
+academybugs         https://academybugs.com/find-bugs/

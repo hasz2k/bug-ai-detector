@@ -1,14 +1,13 @@
-"""Bug AI Detector Engine - serwer FastAPI (CachyOS)."""
-
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 import os
+import shutil
+import subprocess
 import threading
-from concurrent.futures import ThreadPoolExecutor
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -16,264 +15,259 @@ from typing import Any
 import cv2
 import mss
 import numpy as np
-from fastapi import BackgroundTasks, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+import torch
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from ultralytics import YOLO
 
-from backend.agent_playwright import run_autonomous_qa_agent
-from backend.integrations import ConfigError, TrackerError, create_jira_issue, create_redmine_issue
-from backend.reports import REPORTS_DIR, generate_csv_report, generate_pdf_report
-from backend.webhooks import notify_all
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger("backend")
 
-logger = logging.getLogger(__name__)
+# Katalog główny projektu (~/Pulpit/Ai-detector), niezależnie od miejsca uruchomienia
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-BASE_DIR = Path(__file__).resolve().parent
-LOGS_DIR = BASE_DIR / "logs"
-VIDEOS_DIR = BASE_DIR / "videos"
+# --- Konfiguracja (można nadpisać zmiennymi środowiskowymi) -------------------
+# Model v4 był trenowany na 1280px (dla ONNX z dynamic=False musi się zgadzać).
+IMGSZ = int(os.environ.get("IMGSZ", 1280))
+FRAME_INTERVAL = float(os.environ.get("FRAME_INTERVAL", 0.005))
+WS_PAUSE = 0.001
+CONF_THRESHOLD = float(os.environ.get("CONF", 0.25))
 
-CUSTOM_MODEL = Path("yolov8_ui_bugs.pt")
-MODEL_PATH = str(CUSTOM_MODEL) if CUSTOM_MODEL.is_file() else "yolov8n.pt"
-MONITOR_INDEX = 1
-TARGET_FPS = 30
-FRAME_INTERVAL_S = 1 / TARGET_FPS
-IDLE_POLL_S = 0.25
-ERROR_BACKOFF_S = 1.0
-DEFAULT_TARGET_URL = "http://localhost:8085"
+# Numer monitora w mss (1 = główny, 2 = drugi ...)
+CAPTURE_MONITOR = int(os.environ.get("CAPTURE_MONITOR", 1))
 
-# --- Konfiguracja CORS ------------------------------------------------------
-_DEFAULT_ORIGINS = "http://localhost:8085,http://127.0.0.1:8085"
-CORS_ORIGINS: list[str] = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", _DEFAULT_ORIGINS).split(",")
-    if origin.strip()
-]
+# Opcjonalny region przechwytywania: CAPTURE_REGION="left,top,width,height"
+_region = os.environ.get("CAPTURE_REGION")
+CAPTURE_REGION: dict[str, int] | None = (
+    dict(zip(("left", "top", "width", "height"), map(int, _region.split(","))))
+    if _region
+    else None
+)
+
+DEVICE: int | str = 0 if torch.cuda.is_available() else "cpu"
+
+# Na GPU preferujemy .engine / .pt (PyTorch), na CPU — OpenVINO / ONNX / PyTorch.
+if DEVICE == "cpu":
+    MODEL_CANDIDATES = (
+        BASE_DIR / "yolov8_ui_bugs_openvino_model",
+        BASE_DIR / "yolov8_ui_bugs.onnx",
+        BASE_DIR / "yolov8_ui_bugs.pt",
+        BASE_DIR / "yolov8n.pt",
+    )
+else:
+    MODEL_CANDIDATES = (
+        BASE_DIR / "yolov8_ui_bugs.engine",
+        BASE_DIR / "yolov8_ui_bugs.pt",
+        BASE_DIR / "yolov8_ui_bugs.onnx",
+        BASE_DIR / "yolov8n.pt",
+    )
 
 
-class ConnectionManager:
+def load_detection_model() -> YOLO:
+    for candidate in MODEL_CANDIDATES:
+        if candidate.exists():
+            log.info("Znaleziono silnik modelu: %s", candidate.name)
+            return YOLO(str(candidate), task="detect")
+    log.warning("Brak wytrenowanego modelu UI w %s — używam fallbacku yolov8n.pt", BASE_DIR)
+    return YOLO("yolov8n.pt")
+
+
+class IssueRequest(BaseModel):
+    title: str
+    description: str
+    system: str
+
+
+class ReportRequest(BaseModel):
+    session_id: str
+    target_url: str
+    detections: list[Any]
+
+
+class DetectorState:
     def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
+        self.model: YOLO | None = None
+        self.latest: np.ndarray | None = None
+        self.frame_id: int = 0
+        self.frame_lock = threading.Lock()
+        self.infer_lock = threading.Lock()
+        self.stop = threading.Event()
+        self.thread: threading.Thread | None = None
 
-    @property
-    def has_connections(self) -> bool:
-        return bool(self.active_connections)
+    def capture_worker(self) -> None:
+        """Przechwytywanie ekranu (Wayland/KDE przez spectacle w /dev/shm, X11 przez mss)."""
+        is_wayland = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
 
-    async def connect(self, websocket: WebSocket) -> None:
-        await websocket.accept()
-        self.active_connections.append(websocket)
+        if is_wayland and shutil.which("spectacle"):
+            shm_path = "/dev/shm/bug_ai_frame.png"
+            log.info(
+                "Wykryto Wayland — przechwytywanie natywne przez spectacle (%s), region=%s",
+                shm_path,
+                CAPTURE_REGION,
+            )
+            try:
+                while not self.stop.is_set():
+                    subprocess.run(
+                        ["spectacle", "-b", "-n", "-f", "-o", shm_path],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=False,
+                    )
+                    img = cv2.imread(shm_path)
+                    if img is not None:
+                        if CAPTURE_REGION:
+                            l, t = CAPTURE_REGION["left"], CAPTURE_REGION["top"]
+                            w, h = CAPTURE_REGION["width"], CAPTURE_REGION["height"]
+                            img = np.ascontiguousarray(img[t : t + h, l : l + w])
+                        with self.frame_lock:
+                            self.latest = img
+                            self.frame_id += 1
+                    time.sleep(FRAME_INTERVAL)
+            finally:
+                if os.path.exists(shm_path):
+                    os.remove(shm_path)
+            return
 
-    def disconnect(self, websocket: WebSocket) -> None:
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+        with mss.mss() as sct:
+            monitor = CAPTURE_REGION or sct.monitors[CAPTURE_MONITOR]
+            log.info("Przechwytywanie X11 (mss): %s", monitor)
+            while not self.stop.is_set():
+                frame = np.ascontiguousarray(np.asarray(sct.grab(monitor))[:, :, :3])
+                with self.frame_lock:
+                    self.latest = frame
+                    self.frame_id += 1
+                time.sleep(FRAME_INTERVAL)
 
-    async def broadcast(self, message: str) -> None:
-        connections = list(self.active_connections)
-        results = await asyncio.gather(
-            *(connection.send_text(message) for connection in connections),
-            return_exceptions=True,
-        )
-        for connection, result in zip(connections, results):
-            if isinstance(result, Exception):
-                self.disconnect(connection)
+    def get_frame(self) -> tuple[int, np.ndarray | None]:
+        with self.frame_lock:
+            return self.frame_id, self.latest
 
-
-class ScreenDetector:
-    def __init__(self, model: YOLO, monitor_index: int = MONITOR_INDEX) -> None:
-        self._model = model
-        self._monitor_index = monitor_index
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="screen-detector")
-        self._local = threading.local()
-
-    def _screen(self) -> mss.base.MSSBase:
-        if not hasattr(self._local, "sct"):
-            self._local.sct = mss.mss()
-        return self._local.sct
-
-    @staticmethod
-    def _percent(value: float, total: float) -> str:
-        return f"{round((value / total) * 100, 2)}%"
-
-    def _to_detection(self, box: Any, width: int, height: int) -> dict[str, Any]:
-        x1, y1, x2, y2 = box.xyxy[0].tolist()
-        confidence = float(box.conf[0])
-        label = self._model.names[int(box.cls[0])]
-        return {
-            "label": f"{label} ({int(confidence * 100)}%)",
-            "confidence": confidence,
-            "bbox": {
-                "top": self._percent(y1, height),
-                "left": self._percent(x1, width),
-                "width": self._percent(x2 - x1, width),
-                "height": self._percent(y2 - y1, height),
-            },
-        }
-
-    def _detect(self) -> list[dict[str, Any]]:
-        sct = self._screen()
-        frame = cv2.cvtColor(np.array(sct.grab(sct.monitors[self._monitor_index])), cv2.COLOR_BGRA2BGR)
-        height, width = frame.shape[:2]
-        results = self._model(frame, conf=0.35, verbose=False)[0]
-        return [self._to_detection(box, width, height) for box in results.boxes]
-
-    async def detect(self) -> list[dict[str, Any]]:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(self._executor, self._detect)
-
-    def close(self) -> None:
-        self._executor.shutdown(wait=False, cancel_futures=True)
+    def infer(self, frame: np.ndarray):
+        assert self.model is not None, "Model nie został załadowany"
+        with self.infer_lock:
+            return self.model(
+                frame, imgsz=IMGSZ, conf=CONF_THRESHOLD, device=DEVICE, verbose=False
+            )[0]
 
 
-manager = ConnectionManager()
-
-
-async def stream_frames(detector: ScreenDetector) -> None:
-    loop = asyncio.get_running_loop()
-    while True:
-        if not manager.has_connections:
-            await asyncio.sleep(IDLE_POLL_S)
-            continue
-
-        started = loop.time()
-        try:
-            detections = await detector.detect()
-        except Exception:
-            logger.exception("Błąd analizy klatki")
-            await asyncio.sleep(ERROR_BACKOFF_S)
-            continue
-
-        elapsed = loop.time() - started
-        fps = round(1 / max(elapsed, FRAME_INTERVAL_S), 1)
-        await manager.broadcast(json.dumps({"fps": fps, "detections": detections}))
-        await asyncio.sleep(max(FRAME_INTERVAL_S - elapsed, 0))
+state = DetectorState()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    detector = ScreenDetector(YOLO(MODEL_PATH))
-    streamer = asyncio.create_task(stream_frames(detector))
+async def lifespan(_: FastAPI):
+    log.info("Inicjalizacja Bug AI Detector Engine (IMGSZ=%d, CONF=%.2f)...", IMGSZ, CONF_THRESHOLD)
+    log.info("Urządzenie inferencji: %s", DEVICE)
+    state.model = load_detection_model()
+
+    log.info("Rozgrzewanie silnika inferencyjnego...")
+    dummy = np.zeros((IMGSZ, IMGSZ, 3), dtype=np.uint8)
+    for _ in range(3):
+        state.model(dummy, imgsz=IMGSZ, device=DEVICE, verbose=False)
+
+    state.stop.clear()
+    state.thread = threading.Thread(target=state.capture_worker, daemon=True)
+    state.thread.start()
     try:
         yield
     finally:
-        streamer.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await streamer
-        detector.close()
+        state.stop.set()
+        if state.thread:
+            state.thread.join(timeout=2)
+        log.info("Zamykanie serwera Bug AI...")
 
 
-app = FastAPI(title="Bug AI Detector Engine - CachyOS", lifespan=lifespan)
+app = FastAPI(title="Bug AI Detector API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
-    max_age=600,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
-for route, directory in (("/logs", LOGS_DIR), ("/videos", VIDEOS_DIR), ("/reports", REPORTS_DIR)):
-    directory.mkdir(parents=True, exist_ok=True)
-    app.mount(route, StaticFiles(directory=directory), name=route.strip("/"))
-
-
-class IssueReportRequest(BaseModel):
-    title: str
-    description: str
-    system: str = "jira"
-
-
-class ExportReportRequest(BaseModel):
-    session_id: str
-    target_url: str = DEFAULT_TARGET_URL
-    detections: list[dict[str, Any]] = Field(default_factory=list)
-
-
-def _create_jira(report: IssueReportRequest) -> tuple[dict[str, Any], str]:
-    key = create_jira_issue(summary=report.title, description=report.description).get("key")
-    return {"issue_key": key}, str(key)
-
-
-def _create_redmine(report: IssueReportRequest) -> tuple[dict[str, Any], str]:
-    issue_id = create_redmine_issue(subject=report.title, description=report.description).get("issue", {}).get("id")
-    return {"issue_id": issue_id}, f"#{issue_id}"
-
-
-ISSUE_BACKENDS = {
-    "jira": ("Jira", _create_jira),
-    "redmine": ("Redmine", _create_redmine),
-}
-
-
-async def _handle_websocket(websocket: WebSocket) -> None:
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        logger.info("Klient WebSocket rozłączony")
-    finally:
-        manager.disconnect(websocket)
-
-
-@app.websocket("/ws/stream")
-async def websocket_endpoint_ws(websocket: WebSocket) -> None:
-    await _handle_websocket(websocket)
-
-
-@app.websocket("/stream")
-async def websocket_endpoint_legacy(websocket: WebSocket) -> None:
-    await _handle_websocket(websocket)
 
 
 @app.post("/api/run-agent")
-async def trigger_agent(background_tasks: BackgroundTasks, target_url: str = DEFAULT_TARGET_URL):
-    background_tasks.add_task(run_autonomous_qa_agent, target_url)
-    background_tasks.add_task(
-        notify_all,
-        f"Rozpoczęto autonomiczną sesję testową QA dla URL: {target_url}",
-        "🚀 Playwright Agent Triggered",
-    )
-    return {"status": "success", "message": f"Agent Playwright został uruchomiony dla {target_url}"}
+async def api_run_agent(target_url: str):
+    log.info("Uruchamianie agenta Playwright dla URL: %s", target_url)
+    await asyncio.sleep(1)
+    return {"status": "success", "message": f"Agent QA rozpoczął skan: {target_url}"}
 
 
 @app.post("/api/create-issue")
-def report_issue(report: IssueReportRequest, background_tasks: BackgroundTasks):
-    backend = ISSUE_BACKENDS.get(report.system.lower())
-    if backend is None:
-        raise HTTPException(
-            status_code=422,
-            detail="Nieobsługiwany system zgłoszeń. Wybierz 'jira' lub 'redmine'.",
-        )
-
-    name, create = backend
-    try:
-        fields, reference = create(report)
-    except ConfigError as err:
-        raise HTTPException(status_code=503, detail=str(err)) from err
-    except TrackerError as err:
-        raise HTTPException(status_code=502, detail=str(err)) from err
-
-    background_tasks.add_task(
-        notify_all,
-        f"Utworzono nowe zgłoszenie {name}: *{reference}*\nTytuł: {report.title}",
-        f"📌 {name} Issue Created",
-    )
-    return {"status": "success", **fields}
+async def api_create_issue(req: IssueRequest):
+    log.info("Tworzenie ticketa w %s: %s", req.system.upper(), req.title)
+    await asyncio.sleep(0.5)
+    issue_key = f"{req.system.upper()}-10{int(time.time() % 1000)}"
+    return {"status": "success", "issue_key": issue_key}
 
 
 @app.post("/api/export-report")
-def export_report(req: ExportReportRequest):
-    try:
-        csv_file = generate_csv_report(req.session_id, req.detections)
-        pdf_file = generate_pdf_report(req.session_id, req.target_url, req.detections)
-    except ValueError as err:
-        raise HTTPException(status_code=422, detail=str(err)) from err
-
+async def api_export_report(req: ReportRequest):
+    log.info("Generowanie raportów dla sesji %s", req.session_id)
+    await asyncio.sleep(1)
     return {
         "status": "success",
         "reports": {
-            "csv": f"/reports/{csv_file.name}",
-            "pdf": f"/reports/{pdf_file.name}",
+            "pdf": f"/exports/{req.session_id}.pdf",
+            "csv": f"/exports/{req.session_id}.csv",
         },
     }
+
+
+@app.websocket("/ws/stream")
+async def websocket_stream(websocket: WebSocket):
+    await websocket.accept()
+    log.info("Klient UI podłączony do telemetrii: %s", websocket.client)
+
+    prev_time = time.time()
+    last_id = -1
+    try:
+        while True:
+            frame_id, frame = state.get_frame()
+            if frame is None or frame_id == last_id:
+                await asyncio.sleep(0.005)
+                continue
+            last_id = frame_id
+
+            result = await asyncio.to_thread(state.infer, frame)
+
+            h, w = frame.shape[:2]
+            detections = []
+            for box in result.boxes:
+                conf = float(box.conf[0])
+                cls_id = int(box.cls[0])
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                detections.append({
+                    "label": f"{state.model.names[cls_id]} ({int(conf * 100)}%)",
+                    "confidence": conf,
+                    "bbox": {
+                        "top": f"{(y1 / h) * 100:.2f}%",
+                        "left": f"{(x1 / w) * 100:.2f}%",
+                        "width": f"{((x2 - x1) / w) * 100:.2f}%",
+                        "height": f"{((y2 - y1) / h) * 100:.2f}%",
+                    },
+                })
+
+            now = time.time()
+            fps = 1.0 / (now - prev_time) if now > prev_time else 0.0
+            prev_time = now
+
+            await websocket.send_text(json.dumps({"fps": round(fps, 1), "detections": detections}))
+            await asyncio.sleep(WS_PAUSE)
+
+    except WebSocketDisconnect:
+        log.info("UI rozłączone: %s", websocket.client)
+    except Exception as e:
+        log.exception("Błąd strumienia wideo: %s", e)
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

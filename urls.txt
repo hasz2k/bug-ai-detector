@@ -1,0 +1,6 @@
+entry_ad     https://the-internet.herokuapp.com/entry_ad
+inputs       https://the-internet.herokuapp.com/inputs
+sklep        www.allegro.pl
+academy_find_bugs   https://academybugs.com/find-bugs/
+Shifting Content    https://the-internet.herokuapp.com/shifting_content
+Disappearing Elements   https://the-internet.herokuapp.com/disappearing_elements
